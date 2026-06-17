@@ -1,88 +1,80 @@
-# CRM Kopi Banget — Laravel Filament + Twilio WhatsApp Gateway
+# README — CRM Kopi Banget Laravel Filament + Twilio WhatsApp Gateway
 
-Dokumentasi ini menjelaskan proses pembuatan, konfigurasi, pengujian, dan troubleshooting sistem **CRM Kopi Banget** berbasis **Laravel Filament** dengan integrasi **Twilio WhatsApp Gateway**.
+Dokumentasi ini berisi panduan lengkap untuk membangun, mengkonfigurasi, menjalankan, dan mengetes fitur **CRM Kopi Banget** pada project Laravel Filament.
 
-Project ini dibuat untuk mendukung kebutuhan CRM sederhana pada UMKM Kopi Banget, yaitu pencatatan member, pengelolaan poin loyalitas, redeem reward, riwayat aktivitas, pengaturan master promo, dan pengiriman pesan WhatsApp otomatis.
+Sistem ini dibuat untuk kebutuhan CRM kasir/admin, yaitu:
+
+- menambahkan member baru,
+- mencari member berdasarkan nomor WhatsApp,
+- menambahkan poin pembelian,
+- melakukan redeem reward,
+- melihat riwayat aktivitas,
+- mengatur master promo,
+- mengatur automated retention,
+- mengirim WhatsApp otomatis menggunakan Twilio WhatsApp Gateway,
+- menjalankan retention otomatis menggunakan Laravel Scheduler.
 
 ---
 
-## 1. Gambaran Umum Sistem
+## 1. Gambaran Sistem
 
-Sistem CRM Kopi Banget adalah aplikasi berbasis website yang digunakan oleh kasir/admin untuk mengelola data pelanggan dan program loyalitas.
+CRM Kopi Banget adalah modul CRM sederhana berbasis **Laravel Filament** yang terhubung dengan **Twilio WhatsApp Gateway**.
 
-Alur utama sistem:
+Alur utama:
 
 ```text
-Kasir/Admin login ke Laravel Filament
+Admin/Kasir login ke Filament
 ↓
-Kasir mencari atau menambahkan member berdasarkan nomor WhatsApp
+Admin/Kasir membuka menu Kopi Banget CRM
 ↓
-Kasir menambahkan poin setelah pelanggan membeli produk
+Admin/Kasir menambahkan member baru memakai nomor WhatsApp
 ↓
-Sistem menyimpan riwayat poin
+Admin/Kasir mencari member dari dashboard CRM
 ↓
-Sistem mengirim notifikasi WhatsApp melalui Twilio
+Admin/Kasir menambahkan poin pembelian
 ↓
-Jika poin cukup, pelanggan dapat melakukan redeem reward
+Sistem menyimpan transaksi poin
 ↓
-Sistem mencatat history redeem dan mengirim notifikasi WhatsApp
+Sistem mencatat log WhatsApp
+↓
+Sistem mengirim pesan WhatsApp melalui Twilio
+↓
+Member menerima notifikasi WhatsApp
 ```
-
-Fokus utama sistem:
-
-1. Member management.
-2. Loyalty point sederhana.
-3. Redeem reward.
-4. History aktivitas.
-5. Master promo.
-6. Automated retention.
-7. WhatsApp Gateway menggunakan Twilio.
 
 ---
 
 ## 2. Teknologi yang Digunakan
 
-| Bagian | Teknologi |
+| Kebutuhan | Teknologi |
 |---|---|
 | Backend | Laravel |
-| Admin Panel | Laravel Filament |
-| Frontend Admin | Blade + Filament Page + CSS custom |
+| Admin panel | Laravel Filament |
+| UI | Blade + Livewire + CSS inline |
 | Database | MySQL / MariaDB |
 | WhatsApp Gateway | Twilio WhatsApp Sandbox |
-| Queue Testing | `sync` |
-| Scheduler | Laravel Scheduler / Artisan Command |
-| Package WhatsApp | `twilio/sdk` |
+| Queue testing | `sync` |
+| Scheduler | Laravel Scheduler + Cron Host |
+| Container | Docker Compose |
 
 ---
 
-## 3. Fitur Sistem
+## 3. Fitur CRM
 
-### 3.1 Login Admin/Kasir
+### 3.1 Dashboard CRM
 
-Login mengikuti sistem autentikasi dari template Laravel Filament yang digunakan.
+Fungsi halaman Dashboard CRM:
 
-Akses dilakukan melalui panel admin Filament.
+- melihat statistik member,
+- mencari member menggunakan nomor WhatsApp,
+- melihat detail member,
+- menambahkan poin pembelian,
+- melihat progress redeem,
+- melakukan redeem reward,
+- melihat aktivitas terbaru,
+- mengirim WhatsApp otomatis saat poin/redeem.
 
-Contoh URL:
-
-```text
-http://IP-SERVER:PORT/admin
-```
-
----
-
-### 3.2 Dashboard CRM
-
-Dashboard CRM digunakan untuk:
-
-- Mencari member berdasarkan nomor WhatsApp.
-- Menampilkan profil member.
-- Melihat total poin.
-- Menambahkan poin.
-- Melakukan redeem reward.
-- Mengirim notifikasi WhatsApp setelah update poin/redeem.
-
-File terkait:
+Path file:
 
 ```text
 app/Filament/Admin/Pages/CrmDashboard.php
@@ -91,18 +83,18 @@ resources/views/filament/admin/pages/crm-dashboard.blade.php
 
 ---
 
-### 3.3 Tambah Member
+### 3.2 Tambah Member
 
-Fitur tambah member digunakan untuk mendaftarkan pelanggan baru.
+Fungsi halaman Tambah Member:
 
-Data utama:
+- input nama member,
+- input nomor WhatsApp,
+- input tanggal lahir opsional,
+- input catatan member opsional,
+- menyimpan member ke database,
+- redirect ke dashboard CRM setelah berhasil.
 
-- Nama member.
-- Nomor WhatsApp.
-- Tanggal lahir.
-- Catatan tambahan.
-
-File terkait:
+Path file:
 
 ```text
 app/Filament/Admin/Pages/CrmAddMember.php
@@ -111,20 +103,20 @@ resources/views/filament/admin/pages/crm-add-member.blade.php
 
 ---
 
-### 3.4 History Aktivitas
+### 3.3 History CRM
 
-History digunakan untuk melihat aktivitas poin dan redeem.
+Fungsi halaman History:
 
-Data yang dicatat:
+- melihat riwayat tambah poin,
+- melihat riwayat redeem reward,
+- filter berdasarkan keyword,
+- filter tanggal mulai dan tanggal akhir,
+- export CSV,
+- melihat total aktivitas,
+- melihat total poin masuk,
+- melihat total poin redeem.
 
-- Tanggal transaksi.
-- Nama member.
-- Nomor WhatsApp.
-- Jenis aktivitas.
-- Perubahan poin.
-- User/kasir yang melakukan input.
-
-File terkait:
+Path file:
 
 ```text
 app/Filament/Admin/Pages/CrmHistory.php
@@ -133,19 +125,19 @@ resources/views/filament/admin/pages/crm-history.blade.php
 
 ---
 
-### 3.5 Settings CRM
+### 3.4 Settings CRM
 
-Settings CRM digunakan untuk mengatur:
+Fungsi halaman Settings:
 
-- Jumlah poin minimal untuk redeem.
-- Nama reward.
-- Status promo aktif/nonaktif.
-- Durasi retensi.
-- Jam pengiriman retensi.
-- Auto-send WhatsApp.
-- Template pesan WhatsApp.
+- mengatur syarat minimum poin redeem,
+- mengatur nama reward,
+- mengaktifkan/nonaktifkan promo,
+- mengatur durasi retention,
+- mengatur jam kirim retention,
+- mengaktifkan/nonaktifkan auto-send WhatsApp,
+- mengatur template pesan WhatsApp.
 
-File terkait:
+Path file:
 
 ```text
 app/Filament/Admin/Pages/CrmSettingsPage.php
@@ -154,31 +146,7 @@ resources/views/filament/admin/pages/crm-settings-page.blade.php
 
 ---
 
-### 3.6 WhatsApp Gateway
-
-Integrasi WhatsApp dilakukan menggunakan Twilio.
-
-Fungsi utama:
-
-- Kirim pesan setelah member mendapatkan poin.
-- Kirim pesan setelah redeem berhasil.
-- Kirim pesan retensi ke pelanggan pasif.
-- Menyimpan log pengiriman WhatsApp.
-
-File terkait:
-
-```text
-app/Services/Whatsapp/TwilioWhatsappService.php
-app/Services/Crm/WhatsappMessageBuilder.php
-app/Jobs/Crm/SendWhatsappMessageJob.php
-app/Http/Controllers/Crm/WhatsappWebhookController.php
-```
-
----
-
-## 4. Struktur File CRM
-
-Struktur file utama yang ditambahkan:
+## 4. Struktur File Utama
 
 ```text
 app/
@@ -233,10 +201,11 @@ resources/views/filament/admin/pages/
 └── crm-settings-page.blade.php
 ```
 
-CSS:
+Route:
 
 ```text
-public/css/crm-kopi-banget.css
+routes/crm.php
+routes/console.php
 ```
 
 Config:
@@ -245,22 +214,15 @@ Config:
 config/crm.php
 ```
 
-Route tambahan:
-
-```text
-routes/crm.php
-routes/console.php
-```
-
 ---
 
 ## 5. Database
 
 ### 5.1 Tabel `members`
 
-Tabel ini menyimpan data pelanggan/member.
+Menyimpan data member/pelanggan.
 
-Kolom utama:
+Kolom penting:
 
 ```text
 id
@@ -277,19 +239,19 @@ created_at
 updated_at
 ```
 
-Catatan:
+Nomor WhatsApp disarankan memakai format internasional:
 
-- `phone` digunakan sebagai identitas unik pelanggan.
-- Primary key tetap menggunakan `id`.
-- Nomor WhatsApp sebaiknya menggunakan format internasional, contoh: `+6281287968048`.
+```text
++6281287968048
+```
 
 ---
 
 ### 5.2 Tabel `point_transactions`
 
-Tabel ini menyimpan riwayat perubahan poin.
+Menyimpan riwayat perubahan poin.
 
-Kolom utama:
+Kolom penting:
 
 ```text
 id
@@ -306,7 +268,7 @@ created_at
 updated_at
 ```
 
-Contoh `type`:
+Contoh type:
 
 ```text
 earn
@@ -318,9 +280,9 @@ adjustment
 
 ### 5.3 Tabel `crm_settings`
 
-Tabel ini menyimpan konfigurasi CRM.
+Menyimpan konfigurasi CRM.
 
-Kolom utama:
+Kolom penting:
 
 ```text
 id
@@ -338,21 +300,13 @@ created_at
 updated_at
 ```
 
-Contoh aturan:
-
-```text
-3 poin = 1 Kopi Gratis
-Retention = 14 hari
-Auto-send WhatsApp = aktif
-```
-
 ---
 
 ### 5.4 Tabel `whatsapp_logs`
 
-Tabel ini menyimpan log pengiriman WhatsApp.
+Menyimpan log pengiriman WhatsApp.
 
-Kolom utama:
+Kolom penting:
 
 ```text
 id
@@ -370,7 +324,16 @@ created_at
 updated_at
 ```
 
-Contoh `message_type`:
+Contoh status:
+
+```text
+pending
+sent
+failed
+delivered
+```
+
+Contoh message type:
 
 ```text
 manual
@@ -379,21 +342,13 @@ redeem
 retention
 ```
 
-Catatan penting:
-
-Jika kolom `message_type` menggunakan `enum`, gunakan value yang memang sudah tersedia. Jangan menggunakan value seperti `manual_test` jika tidak ada di enum, karena akan muncul error:
-
-```text
-Data truncated for column 'message_type'
-```
-
 ---
 
 ### 5.5 Tabel `retention_logs`
 
-Tabel ini digunakan untuk mencatat pengiriman pesan retensi supaya pelanggan tidak dikirimi pesan berulang secara berlebihan.
+Menyimpan riwayat pengiriman pesan retention.
 
-Kolom utama:
+Kolom penting:
 
 ```text
 id
@@ -407,96 +362,170 @@ updated_at
 
 ---
 
-## 6. Instalasi Project
+## 6. Instalasi Project Laravel
 
-### 6.1 Masuk ke folder project
-
-Jika project Laravel berada di container Docker:
+Masuk ke container PHP:
 
 ```bash
 sudo docker exec -it php_adi bash
 ```
 
-Lalu masuk ke root Laravel:
+Masuk ke folder Laravel:
 
 ```bash
 cd /var/www/html
 ```
 
-Jika menjalankan langsung di server:
-
-```bash
-cd ~/adi_coding/src
-```
-
-Sesuaikan dengan lokasi project masing-masing.
-
----
-
-### 6.2 Install dependency Laravel
+Install dependency:
 
 ```bash
 composer install
 ```
 
----
-
-### 6.3 Install Twilio SDK
+Install Twilio SDK:
 
 ```bash
 composer require twilio/sdk
 ```
 
----
-
-### 6.4 Install dependency frontend
-
-Jika project memakai Vite:
-
-```bash
-npm install
-npm run build
-```
-
-Untuk development:
-
-```bash
-npm run dev
-```
-
----
-
-### 6.5 Jalankan migration
+Jalankan migration:
 
 ```bash
 php artisan migrate
 ```
 
-Jika ingin reset database saat development:
-
-```bash
-php artisan migrate:fresh --seed
-```
-
-Gunakan `migrate:fresh` hanya saat data boleh dihapus.
-
----
-
-### 6.6 Clear cache Laravel
-
-Setelah mengubah `.env`, config, route, atau view:
+Clear cache:
 
 ```bash
 php artisan optimize:clear
 php artisan config:clear
 php artisan cache:clear
+php artisan view:clear
 ```
 
 ---
 
-## 7. Konfigurasi `.env`
+## 7. Link Penting Twilio
 
-Tambahkan konfigurasi berikut pada file `.env`.
+Gunakan link berikut untuk setup Twilio:
+
+| Kebutuhan | Link |
+|---|---|
+| Daftar akun Twilio | https://www.twilio.com/try-twilio |
+| Login Twilio Console | https://console.twilio.com |
+| Dokumentasi WhatsApp Sandbox | https://www.twilio.com/docs/whatsapp/sandbox |
+| WhatsApp Quickstart Twilio | https://www.twilio.com/docs/whatsapp/quickstart |
+| Twilio Free Trial | https://www.twilio.com/docs/usage/tutorials/how-to-use-your-free-trial-account |
+| Twilio Error 63015 | https://www.twilio.com/docs/api/errors/63015 |
+| Twilio Error 20003 / Authenticate | https://www.twilio.com/docs/api/errors/20003 |
+| Twilio API Keys | https://www.twilio.com/docs/iam/api-keys |
+
+---
+
+## 8. Cara Membuat Akun Twilio
+
+### 8.1 Daftar Twilio
+
+Buka:
+
+```text
+https://www.twilio.com/try-twilio
+```
+
+Lakukan pendaftaran akun.
+
+Twilio trial dapat dipakai untuk mencoba fitur Twilio sebelum upgrade akun.
+
+---
+
+### 8.2 Ambil Account SID dan Auth Token
+
+Setelah login Twilio, masuk ke:
+
+```text
+Twilio Console
+→ Account Dashboard
+→ Account Info
+```
+
+Ambil:
+
+```text
+Account SID
+Auth Token
+```
+
+Contoh format:
+
+```env
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+Catatan penting:
+
+- `Account SID` biasanya diawali `AC`.
+- `Auth Token` harus cocok dengan Account SID.
+- Jangan ambil Auth Token dari akun/subaccount yang berbeda.
+- Jangan screenshot atau push token ke GitHub.
+- Jika token pernah terlihat publik, segera regenerate token.
+
+---
+
+### 8.3 Setup WhatsApp Sandbox
+
+Masuk ke:
+
+```text
+Twilio Console
+→ Messaging
+→ Try it out
+→ Send a WhatsApp message
+```
+
+Pada halaman itu akan muncul:
+
+```text
+Sandbox number
+Sandbox join code
+```
+
+Contoh dari project ini:
+
+```text
+Sandbox number:
++14155238886
+
+Join code:
+join behavior-additional
+```
+
+Agar nomor penerima bisa menerima pesan WhatsApp dari Twilio Sandbox, nomor tersebut harus join dulu.
+
+Dari WhatsApp nomor penerima, kirim pesan:
+
+```text
+join behavior-additional
+```
+
+ke:
+
+```text
++14155238886
+```
+
+Jika berhasil, Twilio akan membalas konfirmasi bahwa nomor sudah bergabung ke sandbox.
+
+Catatan:
+
+- Selama masih menggunakan Sandbox, hanya nomor yang sudah join sandbox yang bisa menerima pesan.
+- Jika ingin mengirim ke nomor pelanggan bebas tanpa join sandbox, harus upgrade ke WhatsApp sender production.
+
+---
+
+## 9. Konfigurasi `.env`
+
+Tambahkan konfigurasi ini di file `.env` Laravel:
 
 ```env
 # ==============================
@@ -521,110 +550,7 @@ TWILIO_STATUS_CALLBACK_URL=
 QUEUE_CONNECTION=sync
 ```
 
-Penjelasan:
-
-| Key | Fungsi |
-|---|---|
-| `CRM_BUSINESS_NAME` | Nama bisnis yang muncul pada pesan |
-| `CRM_RETENTION_SEND_TIME` | Jam default pengiriman pesan retensi |
-| `CRM_RETENTION_CHUNK_SIZE` | Jumlah data yang diproses per batch |
-| `TWILIO_WHATSAPP_ENABLED` | Mengaktifkan/nonaktifkan pengiriman WhatsApp |
-| `TWILIO_ACCOUNT_SID` | Account SID dari Twilio |
-| `TWILIO_AUTH_TOKEN` | Auth Token dari Twilio |
-| `TWILIO_WHATSAPP_FROM` | Nomor WhatsApp Sandbox Twilio |
-| `QUEUE_CONNECTION=sync` | Agar job WhatsApp langsung berjalan saat testing |
-
----
-
-## 8. Cara Membuat Akun Twilio
-
-### 8.1 Daftar Twilio
-
-Buka:
-
-```text
-https://www.twilio.com/try-twilio
-```
-
-Ikuti proses pendaftaran hingga akun berhasil dibuat.
-
----
-
-### 8.2 Ambil Account SID dan Auth Token
-
-Masuk ke:
-
-```text
-Twilio Console
-→ Account Dashboard
-→ Account Info
-```
-
-Ambil:
-
-```text
-Account SID
-Auth Token
-```
-
-Masukkan ke `.env`:
-
-```env
-TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
-
-Catatan keamanan:
-
-- Jangan commit `.env` ke GitHub.
-- Jangan screenshot `.env` yang berisi token.
-- Jika token pernah terlihat publik, segera lakukan regenerate Auth Token di Twilio.
-
----
-
-### 8.3 Masuk ke WhatsApp Sandbox
-
-Buka:
-
-```text
-Messaging
-→ Try it out
-→ Send a WhatsApp message
-```
-
-Di halaman Twilio Sandbox akan muncul:
-
-```text
-Sandbox number
-Sandbox join code
-```
-
-Contoh:
-
-```text
-Nomor Twilio Sandbox: +1 415 523 8886
-Kode join: join behavior-additional
-```
-
-Agar nomor penerima bisa menerima pesan, nomor tersebut harus mengirim pesan join ke Twilio Sandbox.
-
-Contoh:
-
-```text
-Kirim ke:
-+14155238886
-
-Isi pesan:
-join behavior-additional
-```
-
-Jika berhasil, Twilio akan membalas bahwa nomor tersebut sudah bergabung ke sandbox.
-
----
-
-## 9. Test Koneksi Twilio dari Laravel
-
-### 9.1 Clear config dulu
+Setelah mengubah `.env`, selalu jalankan:
 
 ```bash
 php artisan optimize:clear
@@ -634,15 +560,15 @@ php artisan cache:clear
 
 ---
 
-### 9.2 Masuk tinker
+## 10. Test Koneksi Twilio dari Laravel
+
+Masuk tinker:
 
 ```bash
 php artisan tinker
 ```
 
----
-
-### 9.3 Cek apakah `.env` terbaca
+Cek apakah `.env` terbaca:
 
 ```php
 [
@@ -664,9 +590,7 @@ from         => +14155238886
 enabled      => true
 ```
 
----
-
-### 9.4 Test autentikasi Twilio
+Test autentikasi Twilio:
 
 ```php
 $sid = trim(env('TWILIO_ACCOUNT_SID'));
@@ -677,37 +601,30 @@ $twilio = new \Twilio\Rest\Client($sid, $token);
 $twilio->api->accounts($sid)->fetch()->friendlyName;
 ```
 
-Jika berhasil, output akan menampilkan nama akun Twilio, contoh:
+Jika berhasil, output contoh:
 
 ```text
 "My first Twilio account"
 ```
 
-Jika gagal dengan error:
+Jika gagal:
 
 ```text
 [HTTP 401] Unable to fetch record: Authenticate
 ```
 
-Berarti `TWILIO_ACCOUNT_SID` dan `TWILIO_AUTH_TOKEN` tidak cocok atau token tidak valid.
-
 Solusi:
 
-1. Copy ulang Account SID dari Twilio Console.
-2. Copy ulang Auth Token dari Twilio Console.
-3. Jika pernah bocor, regenerate Auth Token.
-4. Update `.env`.
-5. Jalankan ulang:
-
-```bash
-php artisan optimize:clear
-php artisan config:clear
-php artisan cache:clear
-```
+1. Copy ulang Account SID.
+2. Copy ulang Auth Token.
+3. Pastikan keduanya dari akun Twilio yang sama.
+4. Regenerate Auth Token jika perlu.
+5. Update `.env`.
+6. Clear config Laravel.
 
 ---
 
-## 10. Test Kirim WhatsApp Menggunakan Tinker
+## 11. Test Kirim WhatsApp dari Tinker
 
 Pastikan nomor tujuan sudah join sandbox.
 
@@ -715,12 +632,6 @@ Contoh nomor tujuan:
 
 ```text
 +6281287968048
-```
-
-Masuk tinker:
-
-```bash
-php artisan tinker
 ```
 
 Jalankan:
@@ -742,24 +653,15 @@ app(\App\Services\Whatsapp\TwilioWhatsappService::class)->send($log);
 $log->refresh()->toArray();
 ```
 
-Jika berhasil, hasilnya akan seperti:
+Jika berhasil di Laravel, hasilnya:
 
 ```text
 status              => sent
 provider_message_id => SMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 error_message       => null
-sent_at             => 2026-06-17 ...
 ```
 
----
-
-## 11. Cek Status Delivery Pesan Twilio
-
-Kadang Laravel mencatat status `sent`, tetapi pesan belum masuk karena delivery ke WhatsApp masih diproses atau gagal di sisi sandbox.
-
-Gunakan `provider_message_id` dari `whatsapp_logs`.
-
-Contoh:
+Cek status real dari Twilio:
 
 ```php
 $sid = trim(env('TWILIO_ACCOUNT_SID'));
@@ -767,7 +669,7 @@ $token = trim(env('TWILIO_AUTH_TOKEN'));
 
 $twilio = new \Twilio\Rest\Client($sid, $token);
 
-$messageSid = 'SMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+$messageSid = $log->provider_message_id;
 
 $message = $twilio->messages($messageSid)->fetch();
 
@@ -778,40 +680,500 @@ $message = $twilio->messages($messageSid)->fetch();
     'from' => $message->from,
     'error_code' => $message->errorCode,
     'error_message' => $message->errorMessage,
-    'date_created' => $message->dateCreated?->format('Y-m-d H:i:s'),
-    'date_sent' => $message->dateSent?->format('Y-m-d H:i:s'),
 ];
 ```
 
-Status yang mungkin muncul:
+Target sukses:
 
-| Status | Arti |
-|---|---|
-| `queued` | Pesan masuk antrean Twilio |
-| `sent` | Pesan sudah dikirim oleh Twilio |
-| `delivered` | Pesan sudah sampai ke WhatsApp penerima |
-| `failed` | Pesan gagal dikirim |
-| `undelivered` | Pesan tidak berhasil sampai |
+```text
+status      => delivered
+error_code  => null
+```
+
+Jika muncul:
+
+```text
+error_code => 63015
+```
+
+Artinya nomor penerima belum join Twilio Sandbox.
 
 ---
 
-## 12. Error yang Pernah Terjadi dan Solusinya
+## 12. Cara Test dari Halaman Admin CRM
 
-### 12.1 Error: `HTTP 401 Authenticate`
+Bagian ini menjelaskan alur test ketika website sudah bisa dibuka dan admin sudah login.
 
-Contoh error:
+Contoh URL admin:
 
 ```text
-[HTTP 401] Unable to fetch record: Authenticate
+https://domain-anda.com/admin
 ```
+
+Atau saat development:
+
+```text
+http://100.100.55.22:38/admin
+```
+
+---
+
+### 12.1 Login Admin
+
+1. Buka halaman admin:
+
+```text
+/admin
+```
+
+2. Login menggunakan akun admin/kasir.
+3. Pastikan sidebar menampilkan menu:
+
+```text
+Kopi Banget CRM
+├── Dashboard CRM
+├── Tambah Member
+├── History
+└── Settings CRM
+```
+
+Jika menu belum muncul:
+
+- pastikan user punya role/permission yang sesuai,
+- login sebagai super admin,
+- clear cache Laravel.
+
+Command:
+
+```bash
+php artisan optimize:clear
+php artisan config:clear
+php artisan cache:clear
+```
+
+---
+
+### 12.2 Test Halaman Tambah Member
+
+Buka:
+
+```text
+/admin/crm-add-member
+```
+
+Isi form:
+
+```text
+Nama Lengkap:
+Test Member WA
+
+Nomor WhatsApp:
++6281287968048
+
+Tanggal Lahir:
+boleh kosong
+
+Catatan:
+Test pengiriman WhatsApp Twilio dari web CRM
+```
+
+Klik:
+
+```text
+Simpan Member
+```
+
+Hasil yang diharapkan:
+
+```text
+✅ Member berhasil tersimpan
+✅ Total member bertambah
+✅ Redirect ke Dashboard CRM atau muncul notifikasi sukses
+```
+
+Jika muncul error nomor sudah terdaftar, lanjut saja ke Dashboard CRM dan cari nomor tersebut.
+
+---
+
+### 12.3 Test Halaman Dashboard CRM
+
+Buka:
+
+```text
+/admin/crm-dashboard
+```
+
+Pada kolom pencarian, masukkan:
+
+```text
++6281287968048
+```
+
+Klik:
+
+```text
+Cari Member
+```
+
+Hasil yang diharapkan:
+
+```text
+✅ Profil member tampil
+✅ Total poin tampil
+✅ Progress redeem tampil
+✅ Tombol tambah poin aktif
+```
+
+Tambah poin:
+
+```text
+Tambah Poin:
+1
+
+Aktivitas:
+Pembelian Kopi Susu
+```
+
+Klik:
+
+```text
+Simpan Poin
+```
+
+Hasil yang diharapkan:
+
+```text
+✅ Total poin member bertambah
+✅ Data masuk ke point_transactions
+✅ Data masuk ke whatsapp_logs
+✅ WhatsApp masuk ke nomor member
+```
+
+---
+
+### 12.4 Cek WhatsApp Masuk
+
+Jika pesan WhatsApp berhasil, nomor member akan menerima pesan dari Twilio Sandbox.
+
+Jika pesan belum masuk, cek:
+
+1. Nomor sudah join sandbox atau belum.
+2. `whatsapp_logs` statusnya apa.
+3. Status real Twilio dari `provider_message_id`.
+
+Cek log terbaru:
+
+```bash
+php artisan tinker
+```
+
+```php
+\App\Models\WhatsappLog::latest()->first()->toArray();
+```
+
+Jika hasilnya:
+
+```text
+status        => sent
+error_message => null
+```
+
+Laravel sudah berhasil mengirim request ke Twilio.
+
+Jika ingin cek status delivery Twilio:
+
+```php
+$sid = trim(env('TWILIO_ACCOUNT_SID'));
+$token = trim(env('TWILIO_AUTH_TOKEN'));
+
+$twilio = new \Twilio\Rest\Client($sid, $token);
+
+$messageSid = \App\Models\WhatsappLog::latest()->first()->provider_message_id;
+
+$message = $twilio->messages($messageSid)->fetch();
+
+[
+    'status' => $message->status,
+    'to' => $message->to,
+    'from' => $message->from,
+    'error_code' => $message->errorCode,
+    'error_message' => $message->errorMessage,
+];
+```
+
+Jika `error_code` adalah `63015`, nomor belum join sandbox.
+
+---
+
+### 12.5 Test Redeem Reward
+
+Jika aturan promo:
+
+```text
+3 Poin = 1 Kopi Gratis
+```
+
+Maka tambahkan poin sampai member punya minimal 3 poin.
+
+Contoh:
+
+```text
+Tambah poin 1
+Tambah poin 1
+Tambah poin 1
+```
+
+Setelah poin cukup, klik:
+
+```text
+Redeem Reward
+```
+
+Hasil yang diharapkan:
+
+```text
+✅ Poin member berkurang sesuai aturan redeem
+✅ Data redeem masuk ke point_transactions
+✅ Data WhatsApp redeem masuk ke whatsapp_logs
+✅ Member menerima pesan WhatsApp redeem
+```
+
+---
+
+### 12.6 Test Halaman History
+
+Buka:
+
+```text
+/admin/crm-history
+```
+
+Cek apakah muncul aktivitas:
+
+```text
+Pembelian Kopi Susu
+Tambah poin +1
+Redeem reward
+```
+
+Coba filter:
+
+```text
+Nama member
+Nomor WhatsApp
+Aktivitas
+Tanggal mulai
+Tanggal akhir
+```
+
+Test export:
+
+```text
+Klik Export CSV
+```
+
+Hasil yang diharapkan:
+
+```text
+✅ Data riwayat tampil
+✅ Filter berjalan
+✅ Export CSV berhasil
+```
+
+---
+
+### 12.7 Test Halaman Settings CRM
+
+Buka:
+
+```text
+/admin/crm-settings-page
+```
+
+Coba ubah:
+
+```text
+Syarat Redeem Poin:
+3
+
+Nama Reward:
+1 Kopi Gratis
+
+Status Promo:
+Aktif
+
+Durasi Pengingat:
+14 Hari
+
+Jam Kirim Retensi:
+07:00
+
+Auto-Send WhatsApp:
+Aktif
+```
+
+Klik:
+
+```text
+Simpan Perubahan
+```
+
+Hasil yang diharapkan:
+
+```text
+✅ Settings berhasil disimpan
+✅ Dashboard CRM menampilkan aturan baru
+✅ Redeem mengikuti syarat poin terbaru
+✅ Retention mengikuti durasi dan jam terbaru
+```
+
+---
+
+## 13. Alur Test Lengkap dari Awal sampai Akhir
+
+Gunakan alur ini untuk demo:
+
+```text
+1. Login ke /admin
+2. Buka menu Kopi Banget CRM
+3. Buka Tambah Member
+4. Input nama dan nomor WhatsApp yang sudah join sandbox
+5. Klik Simpan Member
+6. Buka Dashboard CRM
+7. Cari nomor member
+8. Tambah poin 1 dengan aktivitas “Pembelian Kopi Susu”
+9. Cek WhatsApp masuk
+10. Buka History
+11. Pastikan transaksi poin muncul
+12. Tambah poin sampai total memenuhi syarat redeem
+13. Klik Redeem Reward
+14. Cek WhatsApp redeem masuk
+15. Buka Settings CRM
+16. Tunjukkan syarat redeem, retensi, dan template pesan
+17. Jalankan test retention dry-run
+18. Jelaskan scheduler otomatis via cron host
+```
+
+---
+
+## 14. Scheduler Laravel di Docker Compose
+
+Laravel Scheduler tidak berjalan otomatis hanya karena schedule ditulis di `routes/console.php`.
+
+Harus ada proses yang menjalankan:
+
+```bash
+php artisan schedule:run
+```
+
+setiap menit.
+
+Untuk project ini digunakan cron host:
+
+```cron
+* * * * * cd /home/backend/adi_coding && docker exec php_adi php /var/www/html/artisan schedule:run >> /tmp/adi_crm_scheduler.log 2>&1
+```
+
+Artinya:
+
+```text
+Setiap menit
+↓
+Host masuk ke folder project
+↓
+Host menjalankan command di container php_adi
+↓
+Laravel schedule:run berjalan
+↓
+Laravel mengecek task mana yang waktunya sudah tiba
+↓
+Command retention dijalankan sesuai jadwal
+```
+
+Pastikan nama container benar:
+
+```bash
+docker ps
+```
+
+Pastikan schedule terdaftar:
+
+```bash
+docker exec php_adi php /var/www/html/artisan schedule:list
+```
+
+Test manual:
+
+```bash
+docker exec php_adi php /var/www/html/artisan schedule:run
+```
+
+Cek log scheduler:
+
+```bash
+tail -f /tmp/adi_crm_scheduler.log
+```
+
+---
+
+## 15. Schedule Retention
+
+Pastikan di `routes/console.php` ada:
+
+```php
+use Illuminate\Support\Facades\Schedule;
+
+Schedule::command('crm:send-retention-whatsapp')
+    ->dailyAt(env('CRM_RETENTION_SEND_TIME', '07:00'));
+```
+
+Test dry-run:
+
+```bash
+docker exec -it php_adi php /var/www/html/artisan crm:send-retention-whatsapp --dry-run
+```
+
+Test asli:
+
+```bash
+docker exec -it php_adi php /var/www/html/artisan crm:send-retention-whatsapp
+```
+
+Jika `.env` memakai:
+
+```env
+QUEUE_CONNECTION=sync
+```
+
+maka WhatsApp langsung dikirim tanpa queue worker.
+
+Jika nanti production memakai:
+
+```env
+QUEUE_CONNECTION=database
+```
+
+jalankan worker:
+
+```bash
+php artisan queue:work
+```
+
+atau pasang supervisor.
+
+---
+
+## 16. Troubleshooting
+
+### 16.1 Error `HTTP 401 Authenticate`
 
 Penyebab:
 
 - Account SID salah.
 - Auth Token salah.
-- Auth Token tidak cocok dengan Account SID.
-- Token sudah regenerate tetapi `.env` masih memakai token lama.
-- `.env` belum terbaca karena cache Laravel.
+- Auth Token tidak cocok dengan SID.
+- Token sudah regenerate tapi `.env` masih token lama.
+- Config Laravel belum clear.
 
 Solusi:
 
@@ -821,7 +1183,7 @@ php artisan config:clear
 php artisan cache:clear
 ```
 
-Lalu cek ulang:
+Test:
 
 ```php
 $sid = trim(env('TWILIO_ACCOUNT_SID'));
@@ -832,26 +1194,19 @@ $twilio = new \Twilio\Rest\Client($sid, $token);
 $twilio->api->accounts($sid)->fetch()->friendlyName;
 ```
 
-Jika masih gagal, regenerate Auth Token di Twilio.
+Jika masih gagal, regenerate Auth Token.
 
 ---
 
-### 12.2 Error: `63015`
-
-Contoh hasil fetch pesan:
-
-```text
-status     => failed
-error_code => 63015
-```
+### 16.2 Error `63015`
 
 Penyebab:
 
-Nomor penerima belum join Twilio WhatsApp Sandbox.
+Nomor tujuan belum join Twilio Sandbox.
 
 Solusi:
 
-Dari WhatsApp nomor penerima, kirim:
+Dari WhatsApp nomor tujuan, kirim:
 
 ```text
 join behavior-additional
@@ -863,15 +1218,45 @@ ke:
 +14155238886
 ```
 
-Setelah Twilio membalas sukses, test kirim ulang dari Laravel.
+Setelah Twilio membalas sukses, test ulang.
 
 ---
 
-### 12.3 Error: `Data truncated for column 'message_type'`
+### 16.3 Pesan Status `sent` Tapi Belum Masuk WhatsApp
 
 Penyebab:
 
-Kolom `message_type` menggunakan enum, tetapi value yang dikirim tidak tersedia.
+- Delivery masih diproses.
+- Nomor belum join sandbox.
+- Ada error delivery Twilio.
+
+Solusi:
+
+Cek status Twilio dari Message SID:
+
+```php
+$message = $twilio->messages($messageSid)->fetch();
+
+[
+    'status' => $message->status,
+    'error_code' => $message->errorCode,
+    'error_message' => $message->errorMessage,
+];
+```
+
+Target sukses:
+
+```text
+status => delivered
+```
+
+---
+
+### 16.4 Error `Data truncated for column message_type`
+
+Penyebab:
+
+Kolom `message_type` memakai enum dan value tidak tersedia.
 
 Contoh salah:
 
@@ -879,27 +1264,23 @@ Contoh salah:
 'message_type' => 'manual_test'
 ```
 
-Solusi:
-
-Gunakan value yang tersedia:
+Gunakan:
 
 ```php
 'message_type' => 'manual'
 ```
 
-Atau ubah migration kolom `message_type` menjadi `string` jika ingin lebih fleksibel.
-
 ---
 
-### 12.4 Error: `Cannot use Twilio\Rest\Client as Client because the name is already in use`
+### 16.5 Error Tinker `Cannot use Twilio\Rest\Client as Client because the name is already in use`
 
 Penyebab:
 
-Di session tinker yang sama, class sudah pernah di-import menggunakan `use`.
+`use Twilio\Rest\Client;` dipanggil berulang di session tinker.
 
-Solusi 1:
+Solusi:
 
-Keluar dari tinker:
+Keluar tinker:
 
 ```php
 exit
@@ -911,9 +1292,7 @@ Masuk lagi:
 php artisan tinker
 ```
 
-Solusi 2:
-
-Gunakan full namespace:
+Atau gunakan full namespace:
 
 ```php
 $twilio = new \Twilio\Rest\Client($sid, $token);
@@ -921,65 +1300,9 @@ $twilio = new \Twilio\Rest\Client($sid, $token);
 
 ---
 
-### 12.5 Error Filament: `$navigationGroup must be UnitEnum|string|null`
+### 16.6 GitHub Menolak Push Karena Secret
 
-Penyebab:
-
-Filament versi baru mengubah tipe property page.
-
-Salah:
-
-```php
-protected static ?string $navigationGroup = 'Kopi Banget CRM';
-```
-
-Benar:
-
-```php
-use UnitEnum;
-
-protected static string|UnitEnum|null $navigationGroup = 'Kopi Banget CRM';
-```
-
----
-
-### 12.6 Error Filament: `$navigationIcon must have type string|BackedEnum|null`
-
-Salah:
-
-```php
-protected static ?string $navigationIcon = 'heroicon-o-user-plus';
-```
-
-Benar:
-
-```php
-use BackedEnum;
-
-protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-user-plus';
-```
-
----
-
-### 12.7 Error Filament: `Cannot redeclare non static Page::$view as static`
-
-Salah:
-
-```php
-protected static string $view = 'filament.admin.pages.crm-dashboard';
-```
-
-Benar:
-
-```php
-protected string $view = 'filament.admin.pages.crm-dashboard';
-```
-
----
-
-### 12.8 GitHub menolak push karena secret
-
-Contoh error:
+Contoh:
 
 ```text
 GITHUB PUSH PROTECTION
@@ -989,22 +1312,11 @@ Twilio Account String Identifier
 
 Penyebab:
 
-File `.env` atau credential Twilio ikut masuk commit.
+`.env` atau credential Twilio masuk commit.
 
 Solusi:
 
-1. Pastikan `.env` masuk `.gitignore`.
-2. Hapus `.env` dari tracking Git:
-
-```bash
-git rm --cached -f .env 2>/dev/null || true
-git rm --cached -f src/.env 2>/dev/null || true
-```
-
-3. Buat `.env.example` tanpa credential asli.
-4. Commit ulang.
-
-Contoh `.gitignore`:
+Tambahkan ke `.gitignore`:
 
 ```gitignore
 .env
@@ -1013,7 +1325,42 @@ src/.env
 src/.env.*
 !.env.example
 !src/.env.example
+```
 
+Keluarkan dari tracking Git:
+
+```bash
+git rm --cached -f .env 2>/dev/null || true
+git rm --cached -f src/.env 2>/dev/null || true
+```
+
+Buat `.env.example` tanpa credential asli:
+
+```env
+TWILIO_WHATSAPP_ENABLED=false
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_WHATSAPP_FROM=+14155238886
+TWILIO_STATUS_CALLBACK_URL=
+```
+
+Jika token pernah ter-push atau terlihat di screenshot, regenerate Auth Token.
+
+---
+
+### 16.7 File Database Besar Ikut Git
+
+Contoh warning:
+
+```text
+database/data/ibdata1 is larger than GitHub's recommended maximum file size
+```
+
+Solusi:
+
+Tambahkan ke `.gitignore`:
+
+```gitignore
 database/data/
 db/data/
 **/database/data/
@@ -1026,559 +1373,222 @@ aria_log*
 mysql.sock
 ```
 
----
-
-### 12.9 GitHub warning file besar `ibdata1`
-
-Contoh warning:
-
-```text
-File database/data/ibdata1 is larger than GitHub's recommended maximum file size
-```
-
-Penyebab:
-
-File database MySQL/MariaDB ikut masuk Git.
-
-Solusi:
+Keluarkan dari tracking:
 
 ```bash
 git rm --cached -r database/data 2>/dev/null || true
 git rm --cached -r db/data 2>/dev/null || true
 ```
 
-Tambahkan ke `.gitignore`:
+---
 
-```gitignore
+## 17. Keamanan
+
+Jangan push file berikut ke GitHub:
+
+```text
+.env
 database/data/
 db/data/
-**/database/data/
-**/db/data/
 ```
 
----
-
-## 13. Test dari Web CRM
-
-Setelah test tinker berhasil, lanjut test dari web.
-
-### 13.1 Tambah Member
-
-1. Login ke Filament.
-2. Masuk menu:
+Jangan pernah membagikan:
 
 ```text
-Kopi Banget CRM → Tambah Member
-```
-
-3. Isi nama member.
-4. Isi nomor WhatsApp yang sudah join sandbox.
-5. Simpan.
-
-Format nomor:
-
-```text
-+6281287968048
-```
-
----
-
-### 13.2 Tambah Poin
-
-1. Masuk menu:
-
-```text
-Kopi Banget CRM → Dashboard CRM
-```
-
-2. Cari nomor WhatsApp member.
-3. Input jumlah poin.
-4. Klik simpan/tambah poin.
-5. Cek WhatsApp penerima.
-6. Cek tabel `whatsapp_logs`.
-
----
-
-### 13.3 Redeem Reward
-
-1. Pastikan total poin member sudah memenuhi syarat.
-2. Klik tombol redeem.
-3. Sistem mengurangi poin.
-4. Sistem menyimpan history.
-5. Sistem mengirim WhatsApp jika auto-send aktif.
-
----
-
-### 13.4 Cek History
-
-Masuk menu:
-
-```text
-Kopi Banget CRM → History
-```
-
-Cek apakah aktivitas berikut tercatat:
-
-- Tambah member.
-- Tambah poin.
-- Redeem.
-- Perubahan poin.
-
----
-
-## 14. Automated Retention
-
-Automated retention digunakan untuk mengirim pesan WhatsApp kepada pelanggan yang tidak berkunjung dalam jangka waktu tertentu.
-
-Contoh:
-
-```text
-Jika retention_days = 14
-Maka sistem akan mencari member dengan last_visit_at lebih dari 14 hari
-Lalu mengirim pesan “We miss you” melalui WhatsApp
-```
-
----
-
-### 14.1 Test Retention Dry Run
-
-```bash
-php artisan crm:send-retention-whatsapp --dry-run
-```
-
-Dry run hanya mengecek data tanpa benar-benar mengirim pesan.
-
----
-
-### 14.2 Jalankan Retention Asli
-
-```bash
-php artisan crm:send-retention-whatsapp
-```
-
----
-
-### 14.3 Scheduler Laravel
-
-Tambahkan ke `routes/console.php` jika belum ada:
-
-```php
-use Illuminate\Support\Facades\Schedule;
-
-Schedule::command('crm:send-retention-whatsapp')
-    ->dailyAt(env('CRM_RETENTION_SEND_TIME', '07:00'));
-```
-
-Cron server:
-
-```bash
-* * * * * cd /var/www/html && php artisan schedule:run >> /dev/null 2>&1
-```
-
-Jika menggunakan Docker, cron bisa dijalankan di host atau dibuat container scheduler terpisah.
-
----
-
-## 15. Queue
-
-Untuk testing, gunakan:
-
-```env
-QUEUE_CONNECTION=sync
-```
-
-Dengan ini, proses kirim WhatsApp langsung berjalan tanpa perlu worker.
-
-Untuk production, gunakan:
-
-```env
-QUEUE_CONNECTION=database
-```
-
-Lalu jalankan:
-
-```bash
-php artisan queue:table
-php artisan migrate
-php artisan queue:work
-```
-
-Jika menggunakan supervisor:
-
-```bash
-php artisan queue:work --tries=3 --timeout=90
-```
-
----
-
-## 16. Keamanan
-
-### 16.1 Jangan push `.env`
-
-File `.env` berisi credential asli seperti:
-
-```text
-APP_KEY
-DB_PASSWORD
-TWILIO_ACCOUNT_SID
 TWILIO_AUTH_TOKEN
+DB_PASSWORD
+APP_KEY
 ```
 
-Pastikan `.env` tidak masuk Git.
+Jika token sudah terlihat publik:
 
-Cek:
-
-```bash
-git status
-```
-
-Jika `.env` muncul, segera keluarkan dari tracking:
-
-```bash
-git rm --cached -f .env
-git rm --cached -f src/.env
-```
+1. buka Twilio Console,
+2. regenerate Auth Token,
+3. update `.env`,
+4. clear config Laravel,
+5. test ulang koneksi Twilio.
 
 ---
 
-### 16.2 Gunakan `.env.example`
+## 18. Checklist Sebelum Demo
 
-`.env.example` boleh dipush, tetapi isinya harus placeholder:
+### Laravel
 
-```env
-TWILIO_WHATSAPP_ENABLED=false
-TWILIO_ACCOUNT_SID=
-TWILIO_AUTH_TOKEN=
-TWILIO_WHATSAPP_FROM=+14155238886
-TWILIO_STATUS_CALLBACK_URL=
-```
+- [ ] Website bisa dibuka.
+- [ ] Login admin berhasil.
+- [ ] Menu Kopi Banget CRM muncul.
+- [ ] Migration sudah jalan.
+- [ ] `.env` benar.
+- [ ] Config sudah clear.
 
----
+### Twilio
 
-### 16.3 Regenerate Auth Token Jika Bocor
-
-Jika Auth Token pernah:
-
-- tampil di screenshot,
-- masuk Git commit,
-- terbaca oleh GitHub Push Protection,
-- dikirim ke orang lain,
-
-maka segera lakukan regenerate token di Twilio Console.
-
-Setelah regenerate:
-
-1. Update `.env`.
-2. Jalankan:
-
-```bash
-php artisan optimize:clear
-php artisan config:clear
-php artisan cache:clear
-```
-
-3. Test ulang:
-
-```php
-$sid = trim(env('TWILIO_ACCOUNT_SID'));
-$token = trim(env('TWILIO_AUTH_TOKEN'));
-
-$twilio = new \Twilio\Rest\Client($sid, $token);
-
-$twilio->api->accounts($sid)->fetch()->friendlyName;
-```
-
----
-
-## 17. Catatan Tentang Twilio Sandbox dan Production
-
-### 17.1 Sandbox
-
-Twilio Sandbox cocok untuk:
-
-- Development.
-- Testing.
-- Demo tugas akhir.
-- Pengujian integrasi awal.
-
-Keterbatasan Sandbox:
-
-- Hanya bisa kirim ke nomor yang sudah join sandbox.
-- Nomor penerima harus mengirim kode join.
-- Tidak cocok untuk production langsung.
-- Beberapa jenis pesan business-initiated membutuhkan template.
-
----
-
-### 17.2 Production
-
-Untuk production, perlu:
-
-1. Upgrade akun Twilio.
-2. Daftarkan WhatsApp Sender.
-3. Verifikasi bisnis jika diperlukan.
-4. Gunakan template message yang disetujui.
-5. Ikuti aturan WhatsApp Business Platform.
-
-Jika sudah production, nomor pelanggan tidak perlu join sandbox satu per satu.
-
----
-
-## 18. Checklist Testing
-
-Gunakan checklist ini untuk memastikan sistem siap demo.
-
-### 18.1 Laravel dan Database
-
-- [ ] Project bisa dibuka.
-- [ ] Login Filament berhasil.
-- [ ] Migration berhasil.
-- [ ] Model CRM terbaca.
-- [ ] Tabel `members` tersedia.
-- [ ] Tabel `point_transactions` tersedia.
-- [ ] Tabel `crm_settings` tersedia.
-- [ ] Tabel `whatsapp_logs` tersedia.
-- [ ] Tabel `retention_logs` tersedia.
-
----
-
-### 18.2 Twilio
-
+- [ ] Akun Twilio aktif.
 - [ ] Account SID benar.
 - [ ] Auth Token benar.
-- [ ] `TWILIO_WHATSAPP_FROM=+14155238886`.
-- [ ] `TWILIO_WHATSAPP_ENABLED=true`.
-- [ ] `php artisan config:clear` sudah dijalankan.
 - [ ] Test `friendlyName` berhasil.
-- [ ] Nomor tujuan sudah join sandbox.
-- [ ] Test tinker menghasilkan `provider_message_id`.
-- [ ] Status Twilio menjadi `delivered`.
+- [ ] Nomor penerima join sandbox.
+- [ ] Test tinker berhasil.
+- [ ] WhatsApp masuk.
 
----
-
-### 18.3 CRM Web
+### CRM Web
 
 - [ ] Tambah member berhasil.
 - [ ] Cari member berhasil.
 - [ ] Tambah poin berhasil.
-- [ ] Pesan WhatsApp poin terkirim.
+- [ ] WhatsApp tambah poin masuk.
 - [ ] Redeem berhasil.
-- [ ] Pesan WhatsApp redeem terkirim.
-- [ ] History bertambah.
-- [ ] Settings CRM bisa disimpan.
-- [ ] Retention command bisa dry-run.
-- [ ] Retention command bisa mengirim pesan.
+- [ ] WhatsApp redeem masuk.
+- [ ] History tampil.
+- [ ] Settings bisa disimpan.
+- [ ] Export CSV berhasil.
+
+### Scheduler
+
+- [ ] Cron host sudah dipasang.
+- [ ] `schedule:list` menampilkan command retention.
+- [ ] `schedule:run` tidak error.
+- [ ] Retention dry-run berhasil.
+- [ ] Log scheduler bisa dicek.
 
 ---
 
 ## 19. Perintah Penting
 
-### Masuk container
+Masuk container:
 
 ```bash
 sudo docker exec -it php_adi bash
 ```
 
-### Masuk Laravel
+Masuk Laravel:
 
 ```bash
 cd /var/www/html
 ```
 
-### Clear cache
+Clear cache:
 
 ```bash
 php artisan optimize:clear
 php artisan config:clear
 php artisan cache:clear
+php artisan view:clear
 ```
 
-### Tinker
+Tinker:
 
 ```bash
 php artisan tinker
 ```
 
-### Migration
+Test Twilio account:
+
+```php
+$sid = trim(env('TWILIO_ACCOUNT_SID'));
+$token = trim(env('TWILIO_AUTH_TOKEN'));
+$twilio = new \Twilio\Rest\Client($sid, $token);
+$twilio->api->accounts($sid)->fetch()->friendlyName;
+```
+
+Cek WhatsApp log terakhir:
+
+```php
+\App\Models\WhatsappLog::latest()->first()->toArray();
+```
+
+Cek status delivery Twilio:
+
+```php
+$log = \App\Models\WhatsappLog::latest()->first();
+
+$twilio = new \Twilio\Rest\Client(
+    trim(env('TWILIO_ACCOUNT_SID')),
+    trim(env('TWILIO_AUTH_TOKEN'))
+);
+
+$message = $twilio->messages($log->provider_message_id)->fetch();
+
+[
+    'status' => $message->status,
+    'error_code' => $message->errorCode,
+    'error_message' => $message->errorMessage,
+];
+```
+
+Test scheduler:
 
 ```bash
-php artisan migrate
+docker exec php_adi php /var/www/html/artisan schedule:run
 ```
 
-### Queue worker
+Cek scheduler list:
 
 ```bash
-php artisan queue:work
+docker exec php_adi php /var/www/html/artisan schedule:list
 ```
 
-### Test retention
+Cek scheduler log:
 
 ```bash
-php artisan crm:send-retention-whatsapp --dry-run
-php artisan crm:send-retention-whatsapp
-```
-
-### Cek Git status
-
-```bash
-git status
-```
-
-### Commit aman
-
-```bash
-git add .
-git commit -m "Add CRM Kopi Banget documentation and features"
-git push
+tail -f /tmp/adi_crm_scheduler.log
 ```
 
 ---
 
-## 20. Template Pesan WhatsApp
+## 20. Alur Singkat untuk Presentasi
 
-### 20.1 Pesan Tambah Poin
+Gunakan narasi ini saat demo:
 
 ```text
-Halo Kak {name}, terima kasih sudah berbelanja di Kopi Banget.
-Poin Kakak bertambah {points} poin.
-Total poin Kakak sekarang {total_points}.
+Sistem CRM Kopi Banget digunakan kasir untuk mencatat member berdasarkan nomor WhatsApp.
+Saat pelanggan membeli produk, kasir mencari nomor pelanggan dan menambahkan poin.
+Setelah poin ditambahkan, sistem menyimpan transaksi, mencatat log, dan mengirim notifikasi WhatsApp melalui Twilio.
+Jika poin pelanggan sudah memenuhi syarat, kasir dapat melakukan redeem reward.
+Semua aktivitas tersimpan pada halaman History.
+Konfigurasi poin, reward, retensi pelanggan, dan template pesan dapat diatur melalui halaman Settings.
+Untuk retensi otomatis, Laravel Scheduler dijalankan setiap menit melalui cron host dan akan mengirim pesan sesuai jadwal yang ditentukan.
 ```
 
 ---
 
-### 20.2 Pesan Redeem
+## 21. Catatan Production
 
-```text
-Halo Kak {name}, redeem reward berhasil.
-Reward: {reward_name}
-Sisa poin Kakak sekarang {total_points}.
-Terima kasih sudah menjadi pelanggan Kopi Banget.
-```
+Untuk production sungguhan:
 
----
-
-### 20.3 Pesan Retensi
-
-```text
-Halo Kak {name}, sudah lama belum mampir ke Kopi Banget.
-Poin Kakak masih ada {total_points}.
-Yuk mampir lagi dan nikmati promo dari Kopi Banget.
-```
+1. Jangan gunakan Twilio Sandbox.
+2. Upgrade akun Twilio.
+3. Daftarkan WhatsApp sender resmi.
+4. Gunakan approved message template.
+5. Jalankan queue worker permanen.
+6. Jalankan scheduler permanen.
+7. Simpan credential hanya di `.env`.
+8. Pantau `whatsapp_logs`.
+9. Gunakan HTTPS.
+10. Batasi akses admin dengan role/permission.
 
 ---
 
-## 21. Format Nomor WhatsApp
+## 22. Kesimpulan
 
-Gunakan format internasional:
-
-```text
-+628xxxxxxxxxx
-```
-
-Contoh:
-
-```text
-+6281287968048
-```
-
-Jangan gunakan format:
-
-```text
-081287968048
-+62 812-8796-8048
-81287968048
-```
-
-Sistem dapat dibuat melakukan normalisasi, tetapi format yang paling aman untuk database adalah:
-
-```text
-+6281287968048
-```
-
----
-
-## 22. Alur Demo untuk Sidang / Presentasi
-
-Gunakan alur berikut untuk demonstrasi:
-
-1. Login sebagai kasir/admin.
-2. Buka menu CRM.
-3. Tambahkan member baru dengan nomor WhatsApp.
-4. Tampilkan bahwa member tersimpan.
-5. Masuk dashboard CRM.
-6. Cari nomor WhatsApp member.
-7. Tambahkan 1 poin.
-8. Tampilkan history poin bertambah.
-9. Tampilkan pesan WhatsApp masuk.
-10. Tambahkan poin sampai memenuhi syarat redeem.
-11. Klik redeem.
-12. Tampilkan poin berkurang.
-13. Tampilkan pesan redeem masuk.
-14. Buka menu history.
-15. Tampilkan semua aktivitas tercatat.
-16. Buka settings.
-17. Tunjukkan bahwa syarat redeem dan retensi dapat diatur.
-18. Jalankan command retention dry-run.
-19. Jelaskan bahwa scheduler bisa menjalankan proses otomatis setiap hari.
-
----
-
-## 23. Kesimpulan Implementasi
-
-Sistem CRM Kopi Banget sudah berhasil mengintegrasikan:
+Integrasi CRM Kopi Banget sudah mencakup:
 
 ```text
 Laravel Filament
 ↓
-Database CRM
+CRM Member
 ↓
-Point Transaction
+Loyalty Point
+↓
+Redeem Reward
 ↓
 Whatsapp Log
 ↓
 Twilio WhatsApp Gateway
 ↓
-WhatsApp pelanggan
+WhatsApp Pelanggan
+↓
+Laravel Scheduler untuk Retention
 ```
 
-Sistem ini tidak hanya melakukan CRUD data member, tetapi juga memiliki proses bisnis CRM yang lebih kuat:
-
-- Identifikasi pelanggan menggunakan nomor WhatsApp.
-- Pencatatan poin loyalitas.
-- Redeem reward.
-- Riwayat aktivitas.
-- Pengaturan master promo.
-- Integrasi WhatsApp Gateway.
-- Fitur retensi pelanggan berbasis jadwal.
-
-Dengan sistem ini, Kopi Banget dapat mulai membangun database pelanggan dan menjaga hubungan pelanggan secara lebih terstruktur.
-
----
-
-## 24. Referensi Dokumentasi Resmi
-
-- Laravel Documentation: https://laravel.com/docs
-- Laravel Scheduling: https://laravel.com/docs/scheduling
-- Twilio WhatsApp Sandbox: https://www.twilio.com/docs/whatsapp/sandbox
-- Twilio WhatsApp Quickstart: https://www.twilio.com/docs/whatsapp/quickstart
-- Twilio Error 63015: https://www.twilio.com/docs/api/errors/63015
-- Twilio Error 20003 / Authenticate: https://www.twilio.com/docs/api/errors/20003
-- Twilio API Keys: https://www.twilio.com/docs/iam/api-keys
-
----
-
-## 25. Catatan Akhir
-
-Untuk tahap development dan demo tugas akhir, penggunaan **Twilio WhatsApp Sandbox** sudah cukup.
-
-Namun, untuk penggunaan nyata/production:
-
-1. Jangan gunakan sandbox.
-2. Upgrade akun Twilio.
-3. Daftarkan WhatsApp sender resmi.
-4. Gunakan template message yang disetujui.
-5. Lindungi credential dengan `.env`.
-6. Jalankan queue worker dan scheduler secara permanen.
-7. Pantau `whatsapp_logs` dan status delivery Twilio.
-
-Dokumentasi ini dapat diperbarui sesuai perkembangan fitur CRM Kopi Banget berikutnya.
+Dengan dokumentasi ini, proses setup, konfigurasi Twilio, testing via Tinker, testing via halaman admin, troubleshooting, dan scheduler sudah terdokumentasi lengkap.
