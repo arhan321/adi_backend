@@ -2,27 +2,29 @@
 
 namespace App\Filament\Admin\Pages;
 
-use App\Models\CrmSetting;
+use UnitEnum;
+use Throwable;
+use BackedEnum;
 use App\Models\Member;
-use App\Models\PointTransaction;
-use App\Services\Crm\MemberPointService;
-use App\Services\Whatsapp\TwilioWhatsappService;
-use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use App\Models\CrmSetting;
+use App\Models\PointTransaction;
 use Illuminate\Support\Facades\Auth;
+use App\Services\Crm\MemberPointService;
+use Filament\Notifications\Notification;
 use Illuminate\Validation\ValidationException;
 
 class CrmDashboard extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-squares-2x2';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-squares-2x2';
 
     protected static ?string $navigationLabel = 'Dashboard CRM';
 
-    protected static ?string $navigationGroup = 'Kopi Banget CRM';
+    protected static string|UnitEnum|null $navigationGroup = 'Kopi Banget CRM';
 
     protected static ?int $navigationSort = 1;
 
-    protected static string $view = 'filament.admin.pages.crm-dashboard';
+    protected string $view = 'filament.admin.pages.crm-dashboard';
 
     public string $searchPhone = '';
 
@@ -90,10 +92,10 @@ class CrmDashboard extends Page
 
             Notification::make()
                 ->title('Poin berhasil ditambahkan')
-                ->body('Total poin member sudah diperbarui dan pesan WhatsApp dimasukkan ke antrean jika auto-send aktif.')
+                ->body('Total poin member sudah diperbarui dan pesan WhatsApp akan dikirim jika auto-send aktif.')
                 ->success()
                 ->send();
-        } catch (\Throwable $throwable) {
+        } catch (Throwable $throwable) {
             Notification::make()
                 ->title('Gagal menambah poin')
                 ->body($throwable->getMessage())
@@ -125,7 +127,7 @@ class CrmDashboard extends Page
                 ->body('Poin member sudah dikurangi sesuai syarat reward.')
                 ->success()
                 ->send();
-        } catch (\Throwable $throwable) {
+        } catch (Throwable $throwable) {
             Notification::make()
                 ->title('Redeem gagal')
                 ->body($throwable->getMessage())
@@ -136,9 +138,11 @@ class CrmDashboard extends Page
 
     public function goToAddMember(): mixed
     {
-        return redirect()->to(CrmAddMember::getUrl([
-            'phone' => $this->searchPhone,
-        ]));
+        return redirect()->to(
+            CrmAddMember::getUrl([
+                'phone' => $this->searchPhone,
+            ])
+        );
     }
 
     public function getSelectedMember(): ?Member
@@ -163,7 +167,9 @@ class CrmDashboard extends Page
             'retention_days' => $setting->retention_days,
             'redeem_rule' => $setting->redeem_required_points . ' Poin = ' . $setting->reward_name,
             'total_member' => Member::query()->count(),
-            'today_activity' => PointTransaction::query()->whereDate('transaction_at', today())->count(),
+            'today_activity' => PointTransaction::query()
+                ->whereDate('transaction_at', today())
+                ->count(),
         ];
     }
 }

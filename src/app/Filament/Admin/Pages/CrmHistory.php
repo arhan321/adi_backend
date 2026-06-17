@@ -2,21 +2,23 @@
 
 namespace App\Filament\Admin\Pages;
 
-use App\Models\PointTransaction;
+use UnitEnum;
+use BackedEnum;
 use Filament\Pages\Page;
+use App\Models\PointTransaction;
 use Illuminate\Support\Facades\Response;
 
 class CrmHistory extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-clock';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-clock';
 
     protected static ?string $navigationLabel = 'History';
 
-    protected static ?string $navigationGroup = 'Kopi Banget CRM';
+    protected static string|UnitEnum|null $navigationGroup = 'Kopi Banget CRM';
 
     protected static ?int $navigationSort = 3;
 
-    protected static string $view = 'filament.admin.pages.crm-history';
+    protected string $view = 'filament.admin.pages.crm-history';
 
     public string $keyword = '';
 
@@ -39,7 +41,18 @@ class CrmHistory extends Page
 
         return Response::streamDownload(function () use ($rows): void {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['Tanggal', 'Nama Member', 'Nomor WA', 'Aktivitas', 'Tipe', 'Perubahan Poin', 'Poin Sebelum', 'Poin Sesudah', 'Kasir']);
+
+            fputcsv($handle, [
+                'Tanggal',
+                'Nama Member',
+                'Nomor WA',
+                'Aktivitas',
+                'Tipe',
+                'Perubahan Poin',
+                'Poin Sebelum',
+                'Poin Sesudah',
+                'Kasir',
+            ]);
 
             foreach ($rows as $row) {
                 fputcsv($handle, [

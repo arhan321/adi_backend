@@ -2,22 +2,24 @@
 
 namespace App\Filament\Admin\Pages;
 
-use App\Models\CrmSetting;
-use Filament\Notifications\Notification;
+use UnitEnum;
+use BackedEnum;
 use Filament\Pages\Page;
+use App\Models\CrmSetting;
 use Illuminate\Support\Facades\Auth;
+use Filament\Notifications\Notification;
 
 class CrmSettingsPage extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-cog-6-tooth';
 
     protected static ?string $navigationLabel = 'Settings CRM';
 
-    protected static ?string $navigationGroup = 'Kopi Banget CRM';
+    protected static string|UnitEnum|null $navigationGroup = 'Kopi Banget CRM';
 
     protected static ?int $navigationSort = 4;
 
-    protected static string $view = 'filament.admin.pages.crm-settings-page';
+    protected string $view = 'filament.admin.pages.crm-settings-page';
 
     public int $redeem_required_points = 3;
 

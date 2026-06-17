@@ -2,24 +2,28 @@
 
 namespace App\Filament\Admin\Pages;
 
+use UnitEnum;
+use Throwable;
+use BackedEnum;
 use App\Models\Member;
-use App\Services\Whatsapp\TwilioWhatsappService;
-use Filament\Notifications\Notification;
 use Filament\Pages\Page;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Auth;
+use Filament\Notifications\Notification;
+use App\Services\Whatsapp\TwilioWhatsappService;
+use Illuminate\Database\UniqueConstraintViolationException;
 
 class CrmAddMember extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-user-plus';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-user-plus';
 
     protected static ?string $navigationLabel = 'Tambah Member';
 
-    protected static ?string $navigationGroup = 'Kopi Banget CRM';
+    protected static string|UnitEnum|null $navigationGroup = 'Kopi Banget CRM';
 
     protected static ?int $navigationSort = 2;
 
-    protected static string $view = 'filament.admin.pages.crm-add-member';
+    protected string $view = 'filament.admin.pages.crm-add-member';
 
     public string $name = '';
 
@@ -34,7 +38,7 @@ class CrmAddMember extends Page
         $this->phone = $phone ?? '';
     }
 
-    public function save(TwilioWhatsappService $twilioWhatsappService): mixed
+    public function save(): mixed
     {
         $this->validate([
             'name' => ['required', 'string', 'max:150'],
@@ -44,6 +48,9 @@ class CrmAddMember extends Page
         ]);
 
         try {
+            /** @var TwilioWhatsappService $twilioWhatsappService */
+            $twilioWhatsappService = app(TwilioWhatsappService::class);
+
             $normalizedPhone = $twilioWhatsappService->normalizePhone($this->phone);
 
             $member = Member::query()->create([
@@ -64,16 +71,18 @@ class CrmAddMember extends Page
                 ->success()
                 ->send();
 
-            return redirect()->to(CrmDashboard::getUrl([
-                'phone' => $member->phone,
-            ]));
-        } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+            return redirect()->to(
+                CrmDashboard::getUrl([
+                    'phone' => $member->phone,
+                ])
+            );
+        } catch (UniqueConstraintViolationException) {
             Notification::make()
                 ->title('Nomor sudah terdaftar')
                 ->body('Gunakan menu dashboard untuk mencari member tersebut.')
                 ->warning()
                 ->send();
-        } catch (\Throwable $throwable) {
+        } catch (Throwable $throwable) {
             Notification::make()
                 ->title('Gagal menyimpan member')
                 ->body($throwable->getMessage())
