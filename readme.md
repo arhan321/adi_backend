@@ -1592,3 +1592,6 @@ Laravel Scheduler untuk Retention
 ```
 
 Dengan dokumentasi ini, proses setup, konfigurasi Twilio, testing via Tinker, testing via halaman admin, troubleshooting, dan scheduler sudah terdokumentasi lengkap.
+```
+fonte whatsapp gateway
+```
