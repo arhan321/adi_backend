@@ -30,7 +30,9 @@
            File: resources/views/filament/admin/pages/crm-dashboard.blade.php
            Update: Member belum dipilih/detail member dipindah ke atas,
                    daftar semua member dipindah ke bawah,
-                   tombol Edit Member ditambahkan.
+                   tombol Edit Member ditambahkan,
+                   pencarian member dibenahi: nama/nomor + anti salah pilih,
+                   hasil pencarian ganda ditampilkan nama + nomor.
            ========================================================== */
 
         :root {
@@ -444,6 +446,149 @@
         .kb-search-input:focus {
             border-color: rgba(255,31,45,.56);
             box-shadow: 0 0 0 4px rgba(255,31,45,.09);
+        }
+
+        .kb-search-hint {
+            margin-top: .75rem;
+            padding: .85rem 1rem;
+            border: 1px solid rgba(148, 163, 184, .22);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, .82);
+            color: var(--kb-muted);
+            font-size: .88rem;
+            line-height: 1.55;
+        }
+
+        .kb-search-hint strong {
+            color: var(--kb-black);
+            font-weight: 950;
+        }
+
+        .kb-search-results {
+            margin-top: .85rem;
+            display: grid;
+            gap: .7rem;
+        }
+
+        .kb-search-results-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .8rem;
+            color: var(--kb-muted);
+            font-size: .86rem;
+            font-weight: 800;
+        }
+
+        .kb-search-results-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 34px;
+            height: 28px;
+            padding: 0 .55rem;
+            border-radius: 999px;
+            background: rgba(255, 31, 45, .10);
+            color: var(--kb-red);
+            font-weight: 1000;
+        }
+
+        .kb-search-result-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .75rem;
+        }
+
+        .kb-search-result-card {
+            position: relative;
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            align-items: center;
+            gap: .85rem;
+            padding: .9rem;
+            border: 1px solid rgba(148, 163, 184, .24);
+            border-radius: 20px;
+            background:
+                radial-gradient(circle at top right, rgba(255, 31, 45, .08), transparent 42%),
+                rgba(255, 255, 255, .94);
+            box-shadow: 0 16px 34px rgba(15, 23, 42, .055);
+        }
+
+        .kb-search-result-avatar {
+            width: 48px;
+            height: 48px;
+            display: grid;
+            place-items: center;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #111827, #334155);
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 1000;
+            box-shadow: 0 14px 28px rgba(15, 23, 42, .14);
+        }
+
+        .kb-search-result-info {
+            min-width: 0;
+        }
+
+        .kb-search-result-info h4 {
+            margin: 0;
+            color: var(--kb-black);
+            font-size: .98rem;
+            font-weight: 1000;
+            letter-spacing: -.025em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .kb-search-result-phone {
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            margin-top: .22rem;
+            color: var(--kb-slate);
+            font-size: .84rem;
+            font-weight: 800;
+        }
+
+        .kb-search-result-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .35rem;
+            margin-top: .38rem;
+        }
+
+        .kb-search-result-meta span {
+            display: inline-flex;
+            align-items: center;
+            min-height: 24px;
+            padding: 0 .55rem;
+            border: 1px solid rgba(148, 163, 184, .20);
+            border-radius: 999px;
+            background: rgba(248, 250, 252, .78);
+            color: #64748b;
+            font-size: .70rem;
+            font-weight: 900;
+        }
+
+        .kb-search-result-actions {
+            display: flex;
+            align-items: center;
+            gap: .45rem;
+        }
+
+        .kb-search-result-actions .kb-btn {
+            min-height: 38px;
+            padding: 0 .85rem;
+            border-radius: 13px;
+            font-size: .78rem;
+            white-space: nowrap;
+        }
+
+        .kb-search-result-actions .kb-btn-outline {
+            background: #fff;
         }
 
         /* EMPTY */
@@ -1091,8 +1236,23 @@
 
             .kb-member-grid,
             .kb-member-mini-info,
-            .kb-member-mini-actions {
+            .kb-member-mini-actions,
+            .kb-search-result-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .kb-search-result-card {
+                grid-template-columns: auto minmax(0, 1fr);
+            }
+
+            .kb-search-result-actions {
+                grid-column: 1 / -1;
+                width: 100%;
+            }
+
+            .kb-search-result-actions .kb-btn {
+                flex: 1;
+                justify-content: center;
             }
         }
     </style>
@@ -1189,7 +1349,7 @@
                                 type="text"
                                 wire:model.defer="searchPhone"
                                 class="kb-search-input"
-                                placeholder="Masukkan nomor WhatsApp member, contoh: +6281234567890"
+                                placeholder="Cari nama lengkap atau nomor WhatsApp, contoh: adi zacky / 6281234567890"
                             >
                         </div>
 
@@ -1197,6 +1357,60 @@
                             Cari Member
                         </button>
                     </form>
+
+                    @if ($this->searchFeedback)
+                        <div class="kb-search-hint">
+                            {{ $this->searchFeedback }}
+                        </div>
+                    @endif
+
+                    @if (! empty($this->memberSearchResults))
+                        <div class="kb-search-results">
+                            <div class="kb-search-results-head">
+                                <span>Hasil member yang cocok. Pilih berdasarkan nama dan nomor WhatsApp.</span>
+                                <span class="kb-search-results-count">{{ count($this->memberSearchResults) }}</span>
+                            </div>
+
+                            <div class="kb-search-result-grid">
+                                @foreach ($this->memberSearchResults as $searchResultMember)
+                                    <article class="kb-search-result-card">
+                                        <div class="kb-search-result-avatar">
+                                            {{ $searchResultMember['initial'] ?? 'M' }}
+                                        </div>
+
+                                        <div class="kb-search-result-info">
+                                            <h4>{{ $searchResultMember['name'] }}</h4>
+                                            <div class="kb-search-result-phone">
+                                                📞 {{ $searchResultMember['phone'] }}
+                                            </div>
+                                            <div class="kb-search-result-meta">
+                                                <span>{{ $searchResultMember['member_code'] ?? 'KB-MEMBER' }}</span>
+                                                <span>{{ number_format((int) ($searchResultMember['total_points'] ?? 0)) }} Poin</span>
+                                                <span>{{ $searchResultMember['last_visit_at'] ?? 'Belum ada kunjungan' }}</span>
+                                            </div>
+                                        </div>
+
+                                        <div class="kb-search-result-actions">
+                                            <button
+                                                type="button"
+                                                class="kb-btn kb-btn-dark"
+                                                wire:click="selectMemberFromSearchResult({{ (int) $searchResultMember['id'] }})"
+                                            >
+                                                Pilih
+                                            </button>
+
+                                            <a
+                                                href="{{ \App\Filament\Admin\Pages\CrmEditMember::getUrl(['member' => $searchResultMember['id']]) }}"
+                                                class="kb-btn kb-btn-outline"
+                                            >
+                                                Edit
+                                            </a>
+                                        </div>
+                                    </article>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
                 </div>
 
                 {{-- BAGIAN INI SEKARANG DI ATAS: DETAIL MEMBER / MEMBER BELUM DIPILIH --}}
@@ -1328,9 +1542,9 @@
 
                         <h2>Member belum dipilih</h2>
                         <p>
-                            Daftar semua member sudah tampil di bawah. Klik <strong>Pakai Nomor</strong>
-                            pada member, lalu tekan <strong>Cari Member</strong> untuk membuka detail loyalty point.
-                            Jika nomor belum tersedia, daftarkan member baru terlebih dahulu.
+                            Daftar semua member sudah tampil di bawah. Kamu bisa mencari berdasarkan
+                            <strong>nama lengkap</strong> atau <strong>nomor WhatsApp</strong>. Jika ada beberapa member
+                            yang cocok, sistem akan menampilkan nama dan nomor WhatsApp agar kamu bisa memilih data yang benar.
                         </p>
 
                         <button type="button" wire:click="goToAddMember" class="kb-btn kb-btn-primary">
@@ -1348,8 +1562,8 @@
                         </div>
 
                         <p>
-                            Semua member ditampilkan di sini. Klik <strong>Pakai Nomor</strong>
-                            untuk memasukkan nomor ke kolom pencarian, tekan <strong>Pilih</strong> untuk membuka profil,
+                            Semua member ditampilkan di sini. Klik <strong>Pakai Nomor</strong> untuk memakai nomor
+                            sebagai pencarian paling akurat, tekan <strong>Pilih</strong> untuk membuka profil,
                             atau tekan <strong>Edit</strong> untuk mengubah data member.
                         </p>
                     </div>
