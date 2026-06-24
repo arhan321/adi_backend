@@ -36,12 +36,14 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
-    'fonnte' => [
-    'enabled' => env('FONNTE_ENABLED', false),
-    'token' => env('FONNTE_TOKEN'),
-    'url' => env('FONNTE_URL', 'https://api.fonnte.com/send'),
-    'country_code' => env('FONNTE_COUNTRY_CODE', '62'),
-    'connect_only' => env('FONNTE_CONNECT_ONLY', true),
-],
+        'fonnte' => [
+        'enabled' => env('FONNTE_ENABLED', false),
+        'whatsapp_enabled' => env('FONNTE_WHATSAPP_ENABLED', env('FONNTE_ENABLED', false)),
+        'token' => env('FONNTE_TOKEN'),
+        'url' => env('FONNTE_URL', 'https://api.fonnte.com/send'),
+        'country_code' => env('FONNTE_COUNTRY_CODE', '0'),
+        'connect_only' => env('FONNTE_CONNECT_ONLY', true),
+        'timeout' => env('FONNTE_TIMEOUT', 30),
+    ],
 
 ];

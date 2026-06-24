@@ -1,82 +1,91 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Whatsapp;
 
-use RuntimeException;
 use App\Models\WhatsappLog;
-use Illuminate\Support\Arr;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
+use RuntimeException;
+use Throwable;
 
 class FonnteWhatsappService
 {
+    private const PROVIDER = 'fonnte';
+
     public function send(WhatsappLog $log): WhatsappLog
     {
-        if (! (bool) config('crm.fonnte.enabled', false)) {
-            $log->markAsFailed('Fonnte WhatsApp belum aktif. Set FONNTE_WHATSAPP_ENABLED=true di file .env.');
+        $this->setProvider($log);
+
+        $enabled = filter_var(
+            config('services.fonnte.whatsapp_enabled', config('services.fonnte.enabled', false)),
+            FILTER_VALIDATE_BOOLEAN
+        );
+
+        if (! $enabled) {
+            $log->markAsFailed('Fonnte WhatsApp belum aktif. Cek FONNTE_ENABLED=true dan FONNTE_WHATSAPP_ENABLED=true di file .env.');
 
             return $log->refresh();
         }
 
-        $token = (string) config('crm.fonnte.token', '');
-        $target = $this->formatFonnteTarget($log->phone);
-        $message = trim((string) $log->message_body);
+        $token = trim((string) config('services.fonnte.token'));
+        $url = trim((string) config('services.fonnte.url', 'https://api.fonnte.com/send'));
 
-        if ($token === '' || $target === null || $message === '') {
-            $log->markAsFailed('Konfigurasi Fonnte belum lengkap, nomor WhatsApp tidak valid, atau isi pesan kosong.');
+        if ($token === '') {
+            $log->markAsFailed('Token Fonnte belum diisi. Isi FONNTE_TOKEN di file .env.');
 
             return $log->refresh();
-        }
-
-        $baseUrl = rtrim((string) config('crm.fonnte.base_url', 'https://api.fonnte.com'), '/');
-        $endpoint = '/' . ltrim((string) config('crm.fonnte.send_endpoint', '/send'), '/');
-        $countryCode = (string) config('crm.fonnte.country_code', '62');
-
-        $payload = [
-            'target' => $target,
-            'message' => $message,
-            'countryCode' => $countryCode,
-        ];
-
-        if ($device = config('crm.fonnte.device')) {
-            $payload['device'] = (string) $device;
-        }
-
-        if ($delay = config('crm.fonnte.delay')) {
-            $payload['delay'] = (string) $delay;
         }
 
         try {
+            $target = $this->normalizePhone((string) $log->phone);
+
             $response = Http::asForm()
-                ->timeout((int) config('crm.fonnte.timeout', 30))
+                ->acceptJson()
                 ->withHeaders([
                     'Authorization' => $token,
                 ])
-                ->post($baseUrl . $endpoint, $payload);
+                ->timeout((int) config('services.fonnte.timeout', 30))
+                ->post($url, [
+                    'target' => $target,
+                    'message' => (string) $log->message_body,
+                    'countryCode' => (string) config('services.fonnte.country_code', '0'),
+                    'connectOnly' => filter_var(config('services.fonnte.connect_only', true), FILTER_VALIDATE_BOOLEAN),
+                ]);
 
-            if ($response->failed()) {
-                $log->markAsFailed('Fonnte HTTP error ' . $response->status() . ': ' . Str::limit($response->body(), 500));
+            $json = $response->json();
 
-                return $log->refresh();
+            if (! $response->successful()) {
+                throw new RuntimeException('Fonnte HTTP Error '.$response->status().': '.$response->body());
             }
 
-            $result = $response->json();
-            $isSuccess = (bool) data_get($result, 'status', false);
-
-            if (! $isSuccess) {
-                $errorMessage = data_get($result, 'reason')
-                    ?: data_get($result, 'message')
-                    ?: data_get($result, 'detail')
-                    ?: $response->body();
-
-                $log->markAsFailed('Fonnte gagal mengirim pesan: ' . Str::limit($this->stringifyError($errorMessage), 500));
-
-                return $log->refresh();
+            if (! is_array($json)) {
+                throw new RuntimeException('Response Fonnte tidak valid: '.$response->body());
             }
 
-            $providerMessageId = $this->extractMessageId($result);
-            $log->markAsSent($providerMessageId);
-        } catch (\Throwable $throwable) {
+            if (($json['status'] ?? false) !== true) {
+                $message = $json['reason']
+                    ?? $json['message']
+                    ?? $json['detail']
+                    ?? $json['error']
+                    ?? $response->body()
+                    ?? 'Gagal mengirim pesan via Fonnte.';
+
+                throw new RuntimeException((string) $message);
+            }
+
+            $providerMessageId = $json['id']
+                ?? data_get($json, 'data.id')
+                ?? $json['requestid']
+                ?? null;
+
+            if (is_array($providerMessageId)) {
+                $providerMessageId = implode(',', array_filter(array_map('strval', $providerMessageId)));
+            }
+
+            $log->markAsSent($providerMessageId ? (string) $providerMessageId : null);
+        } catch (Throwable $throwable) {
             $log->markAsFailed($throwable->getMessage());
         }
 
@@ -85,86 +94,39 @@ class FonnteWhatsappService
 
     public function normalizePhone(string $phone): string
     {
-        $phone = preg_replace('/[^0-9+]/', '', trim($phone));
+        $phone = preg_replace('/[^0-9+]/', '', trim($phone)) ?? '';
 
         if ($phone === '') {
-            throw new RuntimeException('Nomor WhatsApp tidak valid.');
+            throw new RuntimeException('Nomor WhatsApp kosong.');
         }
 
         if (Str::startsWith($phone, '+')) {
-            return $phone;
+            $phone = substr($phone, 1);
         }
 
-        $digits = preg_replace('/[^0-9]/', '', $phone);
+        $digits = preg_replace('/[^0-9]/', '', $phone) ?? '';
 
-        if (Str::startsWith($digits, '62')) {
-            return '+' . $digits;
+        if ($digits === '') {
+            throw new RuntimeException('Nomor WhatsApp tidak valid.');
         }
 
         if (Str::startsWith($digits, '0')) {
-            return '+62' . substr($digits, 1);
+            return '62'.substr($digits, 1);
         }
 
         if (Str::startsWith($digits, '8')) {
-            return '+62' . $digits;
-        }
-
-        if ($digits !== '') {
-            return '+' . $digits;
-        }
-
-        throw new RuntimeException('Nomor WhatsApp tidak valid.');
-    }
-
-    public function formatFonnteTarget(?string $phone): ?string
-    {
-        if (! $phone) {
-            return null;
-        }
-
-        $digits = preg_replace('/[^0-9]/', '', $this->normalizePhone($phone));
-
-        if ($digits === '') {
-            return null;
-        }
-
-        if (Str::startsWith($digits, '62')) {
-            return '0' . substr($digits, 2);
+            return '62'.$digits;
         }
 
         return $digits;
     }
 
-    private function extractMessageId(mixed $result): ?string
+    private function setProvider(WhatsappLog $log): void
     {
-        if (! is_array($result)) {
-            return null;
+        if ($log->provider !== self::PROVIDER) {
+            $log->forceFill([
+                'provider' => self::PROVIDER,
+            ])->save();
         }
-
-        $candidates = [
-            data_get($result, 'id'),
-            data_get($result, 'data.id'),
-            data_get($result, 'data.0.id'),
-            data_get($result, 'detail.id'),
-            data_get($result, 'detail.0.id'),
-            data_get($result, 'messages.0.id'),
-        ];
-
-        foreach ($candidates as $candidate) {
-            if (is_scalar($candidate) && trim((string) $candidate) !== '') {
-                return (string) $candidate;
-            }
-        }
-
-        return null;
-    }
-
-    private function stringifyError(mixed $error): string
-    {
-        if (is_scalar($error) || $error === null) {
-            return (string) $error;
-        }
-
-        return json_encode($error, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: 'Unknown error';
     }
 }
