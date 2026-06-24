@@ -10,7 +10,7 @@ use Filament\Pages\Page;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Filament\Notifications\Notification;
-use App\Services\Whatsapp\TwilioWhatsappService;
+use App\Services\Whatsapp\FonnteWhatsappService;
 use Illuminate\Database\UniqueConstraintViolationException;
 
 class CrmAddMember extends Page
@@ -35,7 +35,8 @@ class CrmAddMember extends Page
 
     public function mount(?string $phone = null): void
     {
-        $this->phone = $phone ?? '';
+        $phoneFromUrl = $phone ?? request()->query('phone');
+        $this->phone = is_string($phoneFromUrl) ? $phoneFromUrl : '';
     }
 
     public function save(): mixed
@@ -48,10 +49,8 @@ class CrmAddMember extends Page
         ]);
 
         try {
-            /** @var TwilioWhatsappService $twilioWhatsappService */
-            $twilioWhatsappService = app(TwilioWhatsappService::class);
-
-            $normalizedPhone = $twilioWhatsappService->normalizePhone($this->phone);
+            $whatsappService = app(FonnteWhatsappService::class);
+            $normalizedPhone = $whatsappService->normalizePhone($this->phone);
 
             $member = Member::query()->create([
                 'member_code' => $this->generateMemberCode(),

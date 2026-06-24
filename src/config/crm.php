@@ -3,12 +3,19 @@
 return [
     'business_name' => env('CRM_BUSINESS_NAME', 'Kopi Banget'),
 
-    'twilio' => [
-        'enabled' => env('TWILIO_WHATSAPP_ENABLED', false),
-        'account_sid' => env('TWILIO_ACCOUNT_SID'),
-        'auth_token' => env('TWILIO_AUTH_TOKEN'),
-        'whatsapp_from' => env('TWILIO_WHATSAPP_FROM', '+14155238886'),
-        'status_callback_url' => env('TWILIO_STATUS_CALLBACK_URL'),
+    'whatsapp' => [
+        'provider' => env('CRM_WHATSAPP_PROVIDER', 'fonnte'),
+    ],
+
+    'fonnte' => [
+        'enabled' => env('FONNTE_WHATSAPP_ENABLED', false),
+        'token' => env('FONNTE_TOKEN'),
+        'base_url' => env('FONNTE_BASE_URL', 'https://api.fonnte.com'),
+        'send_endpoint' => env('FONNTE_SEND_ENDPOINT', '/send'),
+        'country_code' => env('FONNTE_COUNTRY_CODE', '62'),
+        'device' => env('FONNTE_DEVICE'),
+        'delay' => env('FONNTE_DELAY'),
+        'timeout' => env('FONNTE_TIMEOUT', 30),
     ],
 
     'retention' => [

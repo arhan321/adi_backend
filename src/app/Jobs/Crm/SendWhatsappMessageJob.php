@@ -3,12 +3,12 @@
 namespace App\Jobs\Crm;
 
 use App\Models\WhatsappLog;
-use App\Services\Whatsapp\TwilioWhatsappService;
 use Illuminate\Bus\Queueable;
+use App\Services\Whatsapp\FonnteWhatsappService;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
 
 class SendWhatsappMessageJob implements ShouldQueue
 {
@@ -17,11 +17,11 @@ class SendWhatsappMessageJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public int $tries = 3;
+    public function __construct(public int $whatsappLogId)
+    {
+    }
 
-    public function __construct(public int $whatsappLogId) {}
-
-    public function handle(TwilioWhatsappService $twilioWhatsappService): void
+    public function handle(FonnteWhatsappService $whatsappService): void
     {
         $log = WhatsappLog::query()->find($this->whatsappLogId);
 
@@ -29,6 +29,6 @@ class SendWhatsappMessageJob implements ShouldQueue
             return;
         }
 
-        $twilioWhatsappService->send($log);
+        $whatsappService->send($log);
     }
 }

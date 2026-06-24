@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Crm;
 
 use App\Http\Controllers\Controller;
 use App\Models\Member;
-use App\Services\Whatsapp\TwilioWhatsappService;
+use App\Services\Whatsapp\FonnteWhatsappService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -30,7 +30,7 @@ class MemberController extends Controller
         ]);
     }
 
-    public function store(Request $request, TwilioWhatsappService $twilioWhatsappService): JsonResponse
+    public function store(Request $request, FonnteWhatsappService $whatsappService): JsonResponse
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:150'],
@@ -39,7 +39,7 @@ class MemberController extends Controller
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $data['phone'] = $twilioWhatsappService->normalizePhone($data['phone']);
+        $data['phone'] = $whatsappService->normalizePhone($data['phone']);
         $data['member_code'] = $this->generateMemberCode();
         $data['created_by'] = Auth::id();
         $data['status'] = Member::STATUS_ACTIVE;

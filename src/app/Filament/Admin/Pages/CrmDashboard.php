@@ -36,7 +36,15 @@ class CrmDashboard extends Page
 
     public function mount(?string $phone = null): void
     {
-        $this->searchPhone = $phone ?? '';
+        /**
+         * FIX:
+         * Dashboard juga membaca nomor dari query string agar redirect dari
+         * halaman edit seperti /admin/crm-dashboard?phone=628xxx langsung
+         * membuka profil member yang baru diedit.
+         */
+        $phoneFromUrl = $phone ?? request()->query('phone');
+
+        $this->searchPhone = is_string($phoneFromUrl) ? $phoneFromUrl : '';
 
         if ($this->searchPhone !== '') {
             $this->searchMember();

@@ -12,12 +12,17 @@ use InvalidArgumentException;
 
 class MemberPointService
 {
-    public function __construct(
-        protected WhatsappMessageBuilder $messageBuilder,
-    ) {}
-
-    public function addPoints(Member $member, int $points, ?int $userId = null, ?string $activityName = null, bool $sendWhatsapp = true): PointTransaction
+    public function __construct(protected WhatsappMessageBuilder $messageBuilder)
     {
+    }
+
+    public function addPoints(
+        Member $member,
+        int $points,
+        ?int $userId = null,
+        string $activityName = 'Pembelian Produk',
+        bool $sendWhatsapp = true,
+    ): PointTransaction {
         if ($points < 1) {
             throw new InvalidArgumentException('Jumlah poin minimal 1.');
         }
@@ -26,6 +31,7 @@ class MemberPointService
 
         return DB::transaction(function () use ($member, $points, $userId, $activityName, $sendWhatsapp, $setting): PointTransaction {
             $member = Member::query()->lockForUpdate()->findOrFail($member->id);
+
             $pointsBefore = (int) $member->total_points;
             $pointsAfter = $pointsBefore + $points;
 
@@ -51,7 +57,7 @@ class MemberPointService
                 $this->queueWhatsapp(
                     $member->refresh(),
                     WhatsappLog::TYPE_POINT_ADDED,
-                    $this->messageBuilder->pointAdded($member, $points, $setting)
+                    $this->messageBuilder->pointAdded($member, $points, $setting),
                 );
             }
 
@@ -101,7 +107,7 @@ class MemberPointService
                 $this->queueWhatsapp(
                     $member->refresh(),
                     WhatsappLog::TYPE_REDEEM_SUCCESS,
-                    $this->messageBuilder->redeemSuccess($member, $setting)
+                    $this->messageBuilder->redeemSuccess($member, $setting),
                 );
             }
 
@@ -116,7 +122,7 @@ class MemberPointService
             'phone' => $member->phone,
             'message_type' => $type,
             'message_body' => $message,
-            'provider' => 'twilio',
+            'provider' => 'fonnte',
             'status' => WhatsappLog::STATUS_PENDING,
         ]);
 
