@@ -1,15 +1,15 @@
 <?php
 
-declare(strict_types=1);
-
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
+Artisan::command('inspire', function (): void {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
+// Command berjalan setiap menit karena setiap transaksi mempunyai scheduled_at sendiri.
+// withoutOverlapping mencegah dua proses scheduler mengirim jadwal yang sama bersamaan.
 Schedule::command('crm:send-retention-whatsapp')
-    ->dailyAt(config('crm.retention.default_send_time', '07:00'))
+    ->everyMinute()
     ->withoutOverlapping();
