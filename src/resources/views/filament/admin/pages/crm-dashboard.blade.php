@@ -280,6 +280,18 @@
             color: var(--kb-red) !important;
         }
 
+        .kb-btn-danger {
+            color: #ffffff !important;
+            background: linear-gradient(135deg, #991b1b, #dc2626);
+            box-shadow: 0 16px 30px rgba(220, 38, 38, .20);
+        }
+
+        .kb-btn:disabled {
+            cursor: wait;
+            opacity: .65;
+            transform: none;
+        }
+
         .kb-btn-glass {
             color: #ffffff !important;
             border: 1px solid rgba(255,255,255,.22);
@@ -1021,7 +1033,7 @@
 
         .kb-member-mini-actions {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: .55rem;
             margin-top: .85rem;
         }
@@ -1564,7 +1576,8 @@
                         <p>
                             Semua member ditampilkan di sini. Klik <strong>Pakai Nomor</strong> untuk memakai nomor
                             sebagai pencarian paling akurat, tekan <strong>Pilih</strong> untuk membuka profil,
-                            atau tekan <strong>Edit</strong> untuk mengubah data member.
+                            tekan <strong>Edit</strong> untuk mengubah data, atau tekan <strong>Hapus</strong> untuk
+                            menghapus member.
                         </p>
                     </div>
 
@@ -1576,7 +1589,10 @@
                                 $isSelectedMember = $member && $member->id === $directoryMember->id;
                             @endphp
 
-                            <article class="kb-member-card-mini {{ $isSelectedMember ? 'is-selected' : '' }}">
+                            <article
+                                class="kb-member-card-mini {{ $isSelectedMember ? 'is-selected' : '' }}"
+                                wire:key="member-card-{{ $directoryMember->id }}"
+                            >
                                 <div class="kb-member-mini-top">
                                     <div class="kb-member-mini-avatar">
                                         {{ $directoryInitial }}
@@ -1639,6 +1655,28 @@
                                     >
                                         Edit
                                     </a>
+
+                                    <button
+                                        type="button"
+                                        class="kb-btn kb-btn-danger"
+                                        wire:click="deleteMember({{ $directoryMember->id }})"
+                                        wire:confirm="Yakin ingin menghapus member {{ $directoryMember->name }}? Member akan dihapus dari daftar, sedangkan riwayat transaksinya tetap tersimpan."
+                                        wire:loading.attr="disabled"
+                                        wire:target="deleteMember({{ $directoryMember->id }})"
+                                    >
+                                        <span
+                                            wire:loading.remove
+                                            wire:target="deleteMember({{ $directoryMember->id }})"
+                                        >
+                                            Hapus
+                                        </span>
+                                        <span
+                                            wire:loading
+                                            wire:target="deleteMember({{ $directoryMember->id }})"
+                                        >
+                                            Menghapus...
+                                        </span>
+                                    </button>
                                 </div>
                             </article>
                         @empty

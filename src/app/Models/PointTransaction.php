@@ -33,7 +33,7 @@ final class PointTransaction extends Model
 
     public function member(): BelongsTo
     {
-        return $this->belongsTo(Member::class);
+        return $this->belongsTo(Member::class)->withTrashed();
     }
 
     public function user(): BelongsTo

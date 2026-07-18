@@ -12,6 +12,7 @@ use App\Models\PointTransaction;
 use Illuminate\Support\Facades\Auth;
 use App\Services\Crm\MemberPointService;
 use Filament\Notifications\Notification;
+use App\Services\Crm\MemberDeletionService;
 use Illuminate\Validation\ValidationException;
 
 class CrmDashboard extends Page
@@ -244,6 +245,38 @@ class CrmDashboard extends Page
     {
         $this->searchPhone = $phone;
         $this->searchMember();
+    }
+
+    public function deleteMember(
+        int $memberId,
+        MemberDeletionService $memberDeletionService,
+    ): void {
+        try {
+            $memberName = $memberDeletionService->delete($memberId);
+
+            if ($this->selectedMemberId === $memberId) {
+                $this->selectedMemberId = null;
+                $this->searchPhone = '';
+                $this->searchFeedback = null;
+            }
+
+            $this->memberSearchResults = array_values(array_filter(
+                $this->memberSearchResults,
+                fn (array $member): bool => (int) ($member['id'] ?? 0) !== $memberId,
+            ));
+
+            Notification::make()
+                ->title('Member berhasil dihapus')
+                ->body($memberName.' tidak lagi ditampilkan. Riwayat transaksi tetap tersimpan.')
+                ->success()
+                ->send();
+        } catch (Throwable $throwable) {
+            Notification::make()
+                ->title('Gagal menghapus member')
+                ->body($throwable->getMessage())
+                ->danger()
+                ->send();
+        }
     }
 
     public function getSelectedMember(): ?Member
