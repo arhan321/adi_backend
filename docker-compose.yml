@@ -6,7 +6,7 @@ services:
     container_name: php_adi
     hostname: "php"
     volumes:
-      - ./src:/var/www/html
+      - ./src2:/var/www/html
       - ./php/www.conf:/usr/local/etc/php-fpm.d/www.conf
     working_dir: /var/www/html
     depends_on: 
@@ -39,7 +39,7 @@ services:
     ports:
       - "38:80"
     volumes:
-      - ./src:/var/www/html
+      - ./src2:/var/www/html
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - php_adi
