@@ -1,13 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Admin\Pages;
 
-use UnitEnum;
-use BackedEnum;
-use Filament\Pages\Page;
 use App\Models\CrmSetting;
-use Illuminate\Support\Facades\Auth;
+use BackedEnum;
 use Filament\Notifications\Notification;
+use Filament\Pages\Page;
+use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\Response;
+use UnitEnum;
 
 class CrmSettingsPage extends Page
 {
@@ -39,15 +42,65 @@ class CrmSettingsPage extends Page
 
     public ?string $retention_message_template = null;
 
+    /**
+     * Hanya super_admin dan manajemen yang dapat membuka Settings CRM.
+     *
+     * Pemeriksaan menggunakan nama role secara langsung agar akses tidak
+     * bergantung pada permission cache Filament Shield.
+     */
+
+    public function save(): void
+{
+    abort_unless(
+        static::canAccess(),
+        403,
+        'Hanya manajemen dan super admin yang dapat mengubah pengaturan retention.',
+    );
+
+    // Coding validasi dan update lama tetap dilanjutkan di sini.
+}
+public static function canAccess(): bool
+{
+    $user = auth()->user();
+
+    return $user !== null
+        && $user->hasAnyRole([
+            'super_admin',
+            'manajemen',
+        ]);
+}
+
+    /**
+     * Hilangkan menu Settings CRM dari sidebar kasir.
+     */
+public static function shouldRegisterNavigation(): bool
+{
+    return static::canAccess();
+}
+
     public function mount(): void
     {
+        /*
+         * Perlindungan URL langsung.
+         * Kasir yang mengetik /admin/crm-settings-page tetap ditolak.
+         */
+        abort_unless(
+            static::canAccess(),
+            Response::HTTP_FORBIDDEN,
+            'Hanya manajemen dan super admin yang dapat membuka pengaturan retention.',
+        );
+
         $setting = CrmSetting::current();
 
         $this->redeem_required_points = (int) $setting->redeem_required_points;
-        $this->reward_name = $setting->reward_name;
+        $this->reward_name = (string) $setting->reward_name;
         $this->promo_is_active = (bool) $setting->promo_is_active;
         $this->retention_days = (int) $setting->retention_days;
-        $this->retention_send_time = substr((string) $setting->retention_send_time, 0, 5) ?: '07:00';
+        $this->retention_send_time = substr(
+            (string) $setting->retention_send_time,
+            0,
+            5,
+        ) ?: '07:00';
         $this->auto_send_whatsapp = (bool) $setting->auto_send_whatsapp;
         $this->point_message_template = $setting->point_message_template;
         $this->redeem_message_template = $setting->redeem_message_template;
@@ -56,16 +109,66 @@ class CrmSettingsPage extends Page
 
     public function save(): void
     {
+        /*
+         * Perlindungan backend.
+         * Tetap diperiksa kembali walaupun halaman lama masih terbuka di tab.
+         */
+        if (! static::canAccess()) {
+            Notification::make()
+                ->title('Akses ditolak')
+                ->body('Hanya manajemen dan super admin yang dapat mengubah pengaturan retention.')
+                ->danger()
+                ->send();
+
+            abort(
+                Response::HTTP_FORBIDDEN,
+                'Anda tidak memiliki akses untuk mengubah pengaturan retention.',
+            );
+        }
+
         $this->validate([
-            'redeem_required_points' => ['required', 'integer', 'min:1', 'max:100'],
-            'reward_name' => ['required', 'string', 'max:100'],
-            'promo_is_active' => ['boolean'],
-            'retention_days' => ['required', 'integer', 'min:1', 'max:365'],
-            'retention_send_time' => ['required', 'date_format:H:i'],
-            'auto_send_whatsapp' => ['boolean'],
-            'point_message_template' => ['nullable', 'string', 'max:1000'],
-            'redeem_message_template' => ['nullable', 'string', 'max:1000'],
-            'retention_message_template' => ['nullable', 'string', 'max:1000'],
+            'redeem_required_points' => [
+                'required',
+                'integer',
+                'min:1',
+                'max:100',
+            ],
+            'reward_name' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+            'promo_is_active' => [
+                'boolean',
+            ],
+            'retention_days' => [
+                'required',
+                'integer',
+                'min:1',
+                'max:365',
+            ],
+            'retention_send_time' => [
+                'required',
+                'date_format:H:i',
+            ],
+            'auto_send_whatsapp' => [
+                'boolean',
+            ],
+            'point_message_template' => [
+                'nullable',
+                'string',
+                'max:1000',
+            ],
+            'redeem_message_template' => [
+                'nullable',
+                'string',
+                'max:1000',
+            ],
+            'retention_message_template' => [
+                'nullable',
+                'string',
+                'max:1000',
+            ],
         ]);
 
         CrmSetting::current()->update([
@@ -73,7 +176,7 @@ class CrmSettingsPage extends Page
             'reward_name' => $this->reward_name,
             'promo_is_active' => $this->promo_is_active,
             'retention_days' => $this->retention_days,
-            'retention_send_time' => $this->retention_send_time . ':00',
+            'retention_send_time' => $this->retention_send_time.':00',
             'auto_send_whatsapp' => $this->auto_send_whatsapp,
             'point_message_template' => $this->point_message_template,
             'redeem_message_template' => $this->redeem_message_template,
@@ -87,4 +190,16 @@ class CrmSettingsPage extends Page
             ->success()
             ->send();
     }
+    public function mount(): void
+{
+    abort_unless(
+        static::canAccess(),
+        403,
+        'Hanya manajemen dan super admin yang dapat membuka pengaturan retention.',
+    );
+
+    $setting = CrmSetting::current();
+
+    // Coding mount lama tetap dilanjutkan di sini.
+}
 }

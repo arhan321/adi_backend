@@ -2,14 +2,15 @@
 
 namespace App\Filament\Admin\Pages;
 
-use UnitEnum;
-use Throwable;
-use BackedEnum;
 use App\Models\Member;
+use App\Services\Whatsapp\FonnteWhatsappService;
+use App\Support\CrmAccess;
+use BackedEnum;
+use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Validation\Rule;
-use Filament\Notifications\Notification;
-use App\Services\Whatsapp\FonnteWhatsappService;
+use Throwable;
+use UnitEnum;
 
 class CrmEditMember extends Page
 {
@@ -40,14 +41,25 @@ class CrmEditMember extends Page
         return false;
     }
 
+    public static function canAccess(): bool
+    {
+        return CrmAccess::canManageMembers(auth()->user());
+    }
+
     public function mount(mixed $member = null): void
     {
+        abort_unless(
+            static::canAccess(),
+            403,
+            'Anda tidak memiliki akses untuk mengubah data customer.',
+        );
+
         $memberId = $this->resolveMemberId($member);
 
         if (! $memberId) {
             Notification::make()
-                ->title('Member belum dipilih')
-                ->body('Silakan pilih member dari Dashboard CRM terlebih dahulu.')
+                ->title('Customer belum dipilih')
+                ->body('Silakan pilih customer dari Dashboard CRM terlebih dahulu.')
                 ->warning()
                 ->send();
 
@@ -60,8 +72,8 @@ class CrmEditMember extends Page
 
         if (! $record) {
             Notification::make()
-                ->title('Member tidak ditemukan')
-                ->body('Data member yang ingin diedit tidak tersedia atau sudah dihapus.')
+                ->title('Customer tidak ditemukan')
+                ->body('Data customer yang ingin diedit tidak tersedia atau sudah dihapus.')
                 ->danger()
                 ->send();
 
@@ -80,12 +92,22 @@ class CrmEditMember extends Page
 
     public function save(): mixed
     {
+        if (! static::canAccess()) {
+            Notification::make()
+                ->title('Akses ditolak')
+                ->body('Anda tidak memiliki akses untuk mengubah data customer.')
+                ->danger()
+                ->send();
+
+            return null;
+        }
+
         $member = $this->getMemberRecord();
 
         if (! $member) {
             Notification::make()
-                ->title('Member tidak ditemukan')
-                ->body('Silakan kembali ke Dashboard CRM lalu pilih member lagi.')
+                ->title('Customer tidak ditemukan')
+                ->body('Silakan kembali ke Dashboard CRM lalu pilih customer lagi.')
                 ->danger()
                 ->send();
 
@@ -116,7 +138,7 @@ class CrmEditMember extends Page
             if ($phoneAlreadyUsed) {
                 Notification::make()
                     ->title('Nomor sudah digunakan')
-                    ->body('Nomor WhatsApp tersebut sudah terdaftar pada member lain.')
+                    ->body('Nomor WhatsApp tersebut sudah terdaftar pada customer lain.')
                     ->warning()
                     ->send();
 
@@ -132,8 +154,8 @@ class CrmEditMember extends Page
             ]);
 
             Notification::make()
-                ->title('Member berhasil diperbarui')
-                ->body($member->name . ' sudah diperbarui di CRM Kopi Banget.')
+                ->title('Customer berhasil diperbarui')
+                ->body($member->name.' sudah diperbarui di CRM Kopi Banget.')
                 ->success()
                 ->send();
 
@@ -143,9 +165,11 @@ class CrmEditMember extends Page
                 ])
             );
         } catch (Throwable $throwable) {
+            report($throwable);
+
             Notification::make()
-                ->title('Gagal memperbarui member')
-                ->body($throwable->getMessage())
+                ->title('Gagal memperbarui customer')
+                ->body('Terjadi kesalahan saat memperbarui data. Silakan coba kembali.')
                 ->danger()
                 ->send();
         }
@@ -172,7 +196,12 @@ class CrmEditMember extends Page
             ?? request()->query('member')
             ?? request()->route('member');
 
-        if (is_array($value) || is_object($value) || $value === null || $value === '') {
+        if (
+            is_array($value)
+            || is_object($value)
+            || $value === null
+            || $value === ''
+        ) {
             return null;
         }
 

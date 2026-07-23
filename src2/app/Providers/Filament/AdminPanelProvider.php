@@ -124,7 +124,7 @@ final class AdminPanelProvider extends PanelProvider
                     ->navigationIcon(Heroicon::ShieldCheck),
                 FilamentLoggerPlugin::make(),
                 FilamentDeveloperLoginsPlugin::make()
-                    ->enabled(app()->environment('local'))
+                    ->enabled(app()->environment('production'))
                     ->switchable(true)
                     ->users(fn () => User::pluck('email', 'name')->toArray()),
             ])

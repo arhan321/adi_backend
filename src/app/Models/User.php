@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\CrmAccess;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -43,15 +44,30 @@ final class User extends Authenticatable
         if ($this->avatar_url) {
             return asset('storage/'.$this->avatar_url);
         }
+
         $hash = md5(mb_strtolower(mb_trim($this->email)));
 
         return 'https://www.gravatar.com/avatar/'.$hash.'?d=mp&r=g&s=250';
-
     }
 
     public function canAccessPanel(Panel $panel): bool
     {
-        return true;
+        return CrmAccess::canAccessPanel($this);
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return CrmAccess::isSuperAdmin($this);
+    }
+
+    public function isManagement(): bool
+    {
+        return $this->hasRole(CrmAccess::ROLE_MANAGEMENT);
+    }
+
+    public function isCashier(): bool
+    {
+        return $this->hasRole(CrmAccess::ROLE_CASHIER);
     }
 
     /**

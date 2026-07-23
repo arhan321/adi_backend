@@ -2,11 +2,13 @@
 
 namespace App\Filament\Admin\Pages;
 
-use UnitEnum;
-use BackedEnum;
-use Filament\Pages\Page;
 use App\Models\PointTransaction;
+use App\Support\CrmAccess;
+use BackedEnum;
+use Filament\Notifications\Notification;
+use Filament\Pages\Page;
 use Illuminate\Support\Facades\Response;
+use UnitEnum;
 
 class CrmHistory extends Page
 {
@@ -26,8 +28,24 @@ class CrmHistory extends Page
 
     public ?string $endDate = null;
 
+    public static function canAccess(): bool
+    {
+        return CrmAccess::canViewHistory(auth()->user());
+    }
+
+    public function canExportHistory(): bool
+    {
+        return CrmAccess::canExportHistory(auth()->user());
+    }
+
     public function getTransactions()
     {
+        abort_unless(
+            static::canAccess(),
+            403,
+            'Anda tidak memiliki akses untuk melihat history CRM.',
+        );
+
         return $this->baseQuery()
             ->latest('transaction_at')
             ->limit(100)
@@ -36,15 +54,27 @@ class CrmHistory extends Page
 
     public function exportCsv(): mixed
     {
-        $fileName = 'history-crm-kopi-banget-' . now()->format('Ymd-His') . '.csv';
-        $rows = $this->baseQuery()->latest('transaction_at')->get();
+        if (! $this->canExportHistory()) {
+            Notification::make()
+                ->title('Akses ditolak')
+                ->body('Hanya manajemen dan super admin yang dapat export history.')
+                ->danger()
+                ->send();
+
+            return null;
+        }
+
+        $fileName = 'history-crm-kopi-banget-'.now()->format('Ymd-His').'.csv';
+        $rows = $this->baseQuery()
+            ->latest('transaction_at')
+            ->cursor();
 
         return Response::streamDownload(function () use ($rows): void {
             $handle = fopen('php://output', 'w');
 
             fputcsv($handle, [
                 'Tanggal',
-                'Nama Member',
+                'Nama Customer',
                 'Nomor WA',
                 'Aktivitas',
                 'Tipe',
@@ -57,20 +87,20 @@ class CrmHistory extends Page
             foreach ($rows as $row) {
                 fputcsv($handle, [
                     optional($row->transaction_at)->format('Y-m-d H:i:s'),
-                    $row->member?->name,
-                    $row->member?->phone,
-                    $row->activity_name,
-                    $row->type,
+                    $this->safeCsvValue($row->member?->name),
+                    $this->safeCsvValue($row->member?->phone),
+                    $this->safeCsvValue($row->activity_name),
+                    $this->safeCsvValue($row->type),
                     $row->points_change,
                     $row->points_before,
                     $row->points_after,
-                    $row->user?->name,
+                    $this->safeCsvValue($row->user?->name),
                 ]);
             }
 
             fclose($handle);
         }, $fileName, [
-            'Content-Type' => 'text/csv',
+            'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
     }
 
@@ -94,7 +124,35 @@ class CrmHistory extends Page
                         });
                 });
             })
-            ->when($this->startDate, fn ($query) => $query->whereDate('transaction_at', '>=', $this->startDate))
-            ->when($this->endDate, fn ($query) => $query->whereDate('transaction_at', '<=', $this->endDate));
+            ->when(
+                $this->startDate,
+                fn ($query) => $query->whereDate(
+                    'transaction_at',
+                    '>=',
+                    $this->startDate,
+                )
+            )
+            ->when(
+                $this->endDate,
+                fn ($query) => $query->whereDate(
+                    'transaction_at',
+                    '<=',
+                    $this->endDate,
+                )
+            );
+    }
+
+    private function safeCsvValue(mixed $value): string
+    {
+        $value = (string) ($value ?? '');
+
+        if (
+            $value !== ''
+            && in_array($value[0], ['=', '+', '-', '@'], true)
+        ) {
+            return "'".$value;
+        }
+
+        return $value;
     }
 }

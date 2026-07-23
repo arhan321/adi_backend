@@ -2,16 +2,17 @@
 
 namespace App\Filament\Admin\Pages;
 
-use UnitEnum;
-use Throwable;
-use BackedEnum;
 use App\Models\Member;
-use Filament\Pages\Page;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Auth;
-use Filament\Notifications\Notification;
 use App\Services\Whatsapp\FonnteWhatsappService;
+use App\Support\CrmAccess;
+use BackedEnum;
+use Filament\Notifications\Notification;
+use Filament\Pages\Page;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use Throwable;
+use UnitEnum;
 
 class CrmAddMember extends Page
 {
@@ -33,14 +34,35 @@ class CrmAddMember extends Page
 
     public ?string $notes = null;
 
+    public static function canAccess(): bool
+    {
+        return CrmAccess::canManageMembers(auth()->user());
+    }
+
     public function mount(?string $phone = null): void
     {
+        abort_unless(
+            static::canAccess(),
+            403,
+            'Anda tidak memiliki akses untuk menambahkan customer.',
+        );
+
         $phoneFromUrl = $phone ?? request()->query('phone');
         $this->phone = is_string($phoneFromUrl) ? $phoneFromUrl : '';
     }
 
     public function save(): mixed
     {
+        if (! static::canAccess()) {
+            Notification::make()
+                ->title('Akses ditolak')
+                ->body('Anda tidak memiliki akses untuk menambahkan customer.')
+                ->danger()
+                ->send();
+
+            return null;
+        }
+
         $this->validate([
             'name' => ['required', 'string', 'max:150'],
             'phone' => ['required', 'string', 'max:30'],
@@ -65,8 +87,8 @@ class CrmAddMember extends Page
             ]);
 
             Notification::make()
-                ->title('Member berhasil ditambahkan')
-                ->body($member->name . ' sudah masuk database CRM Kopi Banget.')
+                ->title('Customer berhasil ditambahkan')
+                ->body($member->name.' sudah masuk database CRM Kopi Banget.')
                 ->success()
                 ->send();
 
@@ -78,13 +100,15 @@ class CrmAddMember extends Page
         } catch (UniqueConstraintViolationException) {
             Notification::make()
                 ->title('Nomor sudah terdaftar')
-                ->body('Gunakan menu dashboard untuk mencari member tersebut.')
+                ->body('Gunakan menu dashboard untuk mencari customer tersebut.')
                 ->warning()
                 ->send();
         } catch (Throwable $throwable) {
+            report($throwable);
+
             Notification::make()
-                ->title('Gagal menyimpan member')
-                ->body($throwable->getMessage())
+                ->title('Gagal menyimpan customer')
+                ->body('Terjadi kesalahan saat menyimpan data. Silakan coba kembali.')
                 ->danger()
                 ->send();
         }
@@ -95,8 +119,12 @@ class CrmAddMember extends Page
     protected function generateMemberCode(): string
     {
         do {
-            $code = 'KB-' . now()->format('ymd') . '-' . Str::upper(Str::random(5));
-        } while (Member::query()->where('member_code', $code)->exists());
+            $code = 'KB-'.now()->format('ymd').'-'.Str::upper(Str::random(5));
+        } while (
+            Member::query()
+                ->where('member_code', $code)
+                ->exists()
+        );
 
         return $code;
     }

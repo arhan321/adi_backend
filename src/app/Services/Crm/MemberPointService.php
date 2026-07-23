@@ -4,20 +4,26 @@ declare(strict_types=1);
 
 namespace App\Services\Crm;
 
-use App\Models\Member;
-use App\Models\CrmSetting;
-use App\Models\WhatsappLog;
-use Carbon\CarbonImmutable;
-use App\Models\RetentionLog;
-use InvalidArgumentException;
-use App\Models\PointTransaction;
-use Illuminate\Support\Facades\DB;
 use App\Jobs\Crm\SendWhatsappMessageJob;
+use App\Models\CrmSetting;
+use App\Models\Member;
+use App\Models\PointTransaction;
+use App\Models\RetentionLog;
+use App\Models\WhatsappLog;
+use App\Support\CrmAccess;
+use Carbon\CarbonImmutable;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 
-class MemberPointService
+final class MemberPointService
 {
-    public function __construct(protected WhatsappMessageBuilder $messageBuilder)
-    {
+    public const POINTS_PER_PURCHASE = 1;
+
+    public function __construct(
+        protected WhatsappMessageBuilder $messageBuilder,
+    ) {
     }
 
     public function addPoints(
@@ -27,8 +33,12 @@ class MemberPointService
         string $activityName = 'Pembelian Produk',
         bool $sendWhatsapp = true,
     ): PointTransaction {
-        if ($points < 1) {
-            throw new InvalidArgumentException('Jumlah poin minimal 1.');
+        $this->authorizePointManagement();
+
+        if ($points !== self::POINTS_PER_PURCHASE) {
+            throw new InvalidArgumentException(
+                'Setiap pembelian hanya menambahkan 1 poin.',
+            );
         }
 
         $setting = CrmSetting::current();
@@ -52,7 +62,7 @@ class MemberPointService
             // Pelanggan datang kembali. Siklus retention lama harus berhenti.
             $this->cancelPendingRetentionCycles(
                 $member->id,
-                'Dibatalkan karena pelanggan kembali dan mendapatkan poin baru.'
+                'Dibatalkan karena pelanggan kembali dan mendapatkan poin baru.',
             );
 
             $member->update([
@@ -73,12 +83,11 @@ class MemberPointService
                 'transaction_at' => $transactionAt,
             ]);
 
-            $this->createRetentionCycle(
+            $this->createRetentionSchedule(
                 member: $member,
                 transaction: $transaction,
-                pointsEarned: $points,
                 intervalDays: max(1, (int) $setting->retention_days),
-                cycleStartedAt: $transactionAt,
+                lastVisitAt: $transactionAt,
             );
 
             if ($sendWhatsapp && $setting->auto_send_whatsapp) {
@@ -87,7 +96,11 @@ class MemberPointService
                 $this->queueWhatsapp(
                     $freshMember,
                     WhatsappLog::TYPE_POINT_ADDED,
-                    $this->messageBuilder->pointAdded($freshMember, $points, $setting),
+                    $this->messageBuilder->pointAdded(
+                        $freshMember,
+                        $points,
+                        $setting,
+                    ),
                 );
             }
 
@@ -100,6 +113,8 @@ class MemberPointService
         ?int $userId = null,
         bool $sendWhatsapp = true,
     ): PointTransaction {
+        $this->authorizePointManagement();
+
         $setting = CrmSetting::current();
 
         if (! $setting->promo_is_active) {
@@ -119,7 +134,9 @@ class MemberPointService
             $requiredPoints = (int) $setting->redeem_required_points;
 
             if ($member->total_points < $requiredPoints) {
-                throw new InvalidArgumentException('Poin member belum cukup untuk redeem.');
+                throw new InvalidArgumentException(
+                    'Poin customer belum cukup untuk redeem.',
+                );
             }
 
             $transactionAt = CarbonImmutable::now();
@@ -129,7 +146,7 @@ class MemberPointService
             // Redeem juga berarti pelanggan kembali. Hentikan siklus lama.
             $this->cancelPendingRetentionCycles(
                 $member->id,
-                'Dibatalkan karena pelanggan kembali dan melakukan redeem.'
+                'Dibatalkan karena pelanggan kembali dan melakukan redeem.',
             );
 
             $member->update([
@@ -147,7 +164,7 @@ class MemberPointService
                 'points_before' => $pointsBefore,
                 'points_after' => $pointsAfter,
                 'activity_name' => 'Redeem '.$setting->reward_name,
-                'description' => 'Member menukarkan poin dengan reward.',
+                'description' => 'Customer menukarkan poin dengan reward.',
                 'transaction_at' => $transactionAt,
             ]);
 
@@ -157,7 +174,10 @@ class MemberPointService
                 $this->queueWhatsapp(
                     $freshMember,
                     WhatsappLog::TYPE_REDEEM_SUCCESS,
-                    $this->messageBuilder->redeemSuccess($freshMember, $setting),
+                    $this->messageBuilder->redeemSuccess(
+                        $freshMember,
+                        $setting,
+                    ),
                 );
             }
 
@@ -165,8 +185,11 @@ class MemberPointService
         });
     }
 
-    public function queueWhatsapp(Member $member, string $type, string $message): WhatsappLog
-    {
+    public function queueWhatsapp(
+        Member $member,
+        string $type,
+        string $message,
+    ): WhatsappLog {
         $log = WhatsappLog::query()->create([
             'member_id' => $member->id,
             'phone' => $member->phone,
@@ -181,49 +204,38 @@ class MemberPointService
         return $log;
     }
 
-    private function createRetentionCycle(
+    private function createRetentionSchedule(
         Member $member,
         PointTransaction $transaction,
-        int $pointsEarned,
         int $intervalDays,
-        CarbonImmutable $cycleStartedAt,
+        CarbonImmutable $lastVisitAt,
     ): void {
-        // Satu poin mewakili satu periode 14 hari.
-        // +3 poin menghasilkan pengingat hari ke-14 dan ke-28.
-        // Hari ke-42 adalah akhir siklus tanpa pengingat baru.
-        $reminderCount = max(0, $pointsEarned - 1);
-        $expiresAt = $cycleStartedAt->addDays($pointsEarned * $intervalDays);
+        $scheduledAt = $lastVisitAt->addDays($intervalDays);
 
-        for ($reminderNumber = 1; $reminderNumber <= $reminderCount; $reminderNumber++) {
-            $daysInactive = $reminderNumber * $intervalDays;
-            $scheduledAt = $cycleStartedAt->addDays($daysInactive);
-
-            RetentionLog::query()->create([
-                'member_id' => $member->id,
-                'point_transaction_id' => $transaction->id,
-                'reminder_number' => $reminderNumber,
-                'points_earned' => $pointsEarned,
-                'retention_date' => $scheduledAt->toDateString(),
-                'scheduled_at' => $scheduledAt,
-                'expires_at' => $expiresAt,
-                'last_visit_at' => $cycleStartedAt,
-                'days_inactive' => $daysInactive,
-                'status' => RetentionLog::STATUS_PENDING,
-                'notes' => sprintf(
-                    'Pengingat ke-%d dari siklus %d poin. Siklus berakhir setelah %d hari.',
-                    $reminderNumber,
-                    $pointsEarned,
-                    $pointsEarned * $intervalDays,
-                ),
-            ]);
-        }
+        RetentionLog::query()->create([
+            'member_id' => $member->id,
+            'point_transaction_id' => $transaction->id,
+            'reminder_number' => 1,
+            'points_earned' => self::POINTS_PER_PURCHASE,
+            'retention_date' => $scheduledAt->toDateString(),
+            'scheduled_at' => $scheduledAt,
+            'expires_at' => null,
+            'last_visit_at' => $lastVisitAt,
+            'days_inactive' => $intervalDays,
+            'status' => RetentionLog::STATUS_PENDING,
+            'notes' => sprintf(
+                'Satu pengingat retention dijadwalkan %d hari setelah pembelian.',
+                $intervalDays,
+            ),
+        ]);
     }
 
-    private function cancelPendingRetentionCycles(int $memberId, string $reason): void
-    {
+    private function cancelPendingRetentionCycles(
+        int $memberId,
+        string $reason,
+    ): void {
         RetentionLog::query()
             ->where('member_id', $memberId)
-            ->whereNotNull('point_transaction_id')
             ->where('status', RetentionLog::STATUS_PENDING)
             ->update([
                 'status' => RetentionLog::STATUS_SKIPPED,
@@ -231,5 +243,17 @@ class MemberPointService
                 'notes' => $reason,
                 'updated_at' => now(),
             ]);
+    }
+
+    private function authorizePointManagement(): void
+    {
+        if (
+            Auth::check()
+            && ! CrmAccess::canManagePoints(Auth::user())
+        ) {
+            throw new AuthorizationException(
+                'Anda tidak memiliki akses untuk mengelola poin customer.',
+            );
+        }
     }
 }
