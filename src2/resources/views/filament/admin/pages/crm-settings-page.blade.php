@@ -873,7 +873,7 @@
                 <div class="kb-stat-body">
                     <div class="kb-label">Auto Send WA</div>
                     <div class="kb-stat-value">{{ $auto_send_whatsapp ? 'Aktif' : 'Nonaktif' }}</div>
-                    <div class="kb-stat-note">Twilio WhatsApp Gateway</div>
+                    <div class="kb-stat-note"> WhatsApp Gateway</div>
                 </div>
             </div>
         </section>
@@ -1018,7 +1018,7 @@
                                     <div>
                                         <div class="kb-switch-title">Auto-Send WhatsApp</div>
                                         <div class="kb-switch-desc">
-                                            Aktifkan pengiriman otomatis melalui Twilio WhatsApp Gateway.
+                                            Aktifkan pengiriman otomatis melalui WhatsApp Gateway.
                                         </div>
                                     </div>
 
@@ -1143,7 +1143,7 @@
                             <div class="kb-info-icon">🛡</div>
                             <div>
                                 <strong>Credential Aman</strong>
-                                <span>Twilio Account SID dan Auth Token tetap disimpan di file .env.</span>
+                                <span>Account SID dan Auth Token tetap disimpan di file .env.</span>
                             </div>
                         </div>
 

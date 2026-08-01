@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Filament\Admin\Pages;
 
-use App\Models\CrmSetting;
-use BackedEnum;
-use Filament\Notifications\Notification;
-use Filament\Pages\Page;
-use Illuminate\Support\Facades\Auth;
-use Symfony\Component\HttpFoundation\Response;
 use UnitEnum;
+use BackedEnum;
+use Filament\Pages\Page;
+use App\Models\CrmSetting;
+use App\Support\CrmAccess;
+use Illuminate\Support\Facades\Auth;
+use Filament\Notifications\Notification;
+use Symfony\Component\HttpFoundation\Response;
 
 class CrmSettingsPage extends Page
 {
@@ -42,48 +43,21 @@ class CrmSettingsPage extends Page
 
     public ?string $retention_message_template = null;
 
-    /**
-     * Hanya super_admin dan manajemen yang dapat membuka Settings CRM.
-     *
-     * Pemeriksaan menggunakan nama role secara langsung agar akses tidak
-     * bergantung pada permission cache Filament Shield.
-     */
+    public static function canAccess(): bool
+    {
+        $user = auth()->user();
 
-    public function save(): void
-{
-    abort_unless(
-        static::canAccess(),
-        403,
-        'Hanya manajemen dan super admin yang dapat mengubah pengaturan retention.',
-    );
+        return CrmAccess::canUseManagementWorkspace($user)
+            && CrmAccess::canManageRetention($user);
+    }
 
-    // Coding validasi dan update lama tetap dilanjutkan di sini.
-}
-public static function canAccess(): bool
-{
-    $user = auth()->user();
-
-    return $user !== null
-        && $user->hasAnyRole([
-            'super_admin',
-            'manajemen',
-        ]);
-}
-
-    /**
-     * Hilangkan menu Settings CRM dari sidebar kasir.
-     */
-public static function shouldRegisterNavigation(): bool
-{
-    return static::canAccess();
-}
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canAccess();
+    }
 
     public function mount(): void
     {
-        /*
-         * Perlindungan URL langsung.
-         * Kasir yang mengetik /admin/crm-settings-page tetap ditolak.
-         */
         abort_unless(
             static::canAccess(),
             Response::HTTP_FORBIDDEN,
@@ -109,10 +83,6 @@ public static function shouldRegisterNavigation(): bool
 
     public function save(): void
     {
-        /*
-         * Perlindungan backend.
-         * Tetap diperiksa kembali walaupun halaman lama masih terbuka di tab.
-         */
         if (! static::canAccess()) {
             Notification::make()
                 ->title('Akses ditolak')
@@ -190,16 +160,4 @@ public static function shouldRegisterNavigation(): bool
             ->success()
             ->send();
     }
-    public function mount(): void
-{
-    abort_unless(
-        static::canAccess(),
-        403,
-        'Hanya manajemen dan super admin yang dapat membuka pengaturan retention.',
-    );
-
-    $setting = CrmSetting::current();
-
-    // Coding mount lama tetap dilanjutkan di sini.
-}
 }

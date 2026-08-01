@@ -8,6 +8,7 @@ use BackedEnum;
 use App\Models\Member;
 use Filament\Pages\Page;
 use App\Models\CrmSetting;
+use App\Support\CrmAccess;
 use App\Models\PointTransaction;
 use Illuminate\Support\Facades\Auth;
 use App\Services\Crm\MemberPointService;
@@ -26,6 +27,16 @@ class CrmDashboard extends Page
     protected static ?int $navigationSort = 1;
 
     protected string $view = 'filament.admin.pages.crm-dashboard';
+
+    public static function canAccess(): bool
+    {
+        return CrmAccess::canUseCashierWorkspace(auth()->user());
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canAccess();
+    }
 
     /**
      * Nama property tetap searchPhone agar kompatibel dengan view lama.
@@ -51,6 +62,12 @@ class CrmDashboard extends Page
 
     public function mount(?string $phone = null, ?string $q = null): void
     {
+        abort_unless(
+            static::canAccess(),
+            403,
+            'Anda tidak memiliki akses ke Dashboard CRM.',
+        );
+
         /**
          * Dashboard membaca query string agar redirect seperti:
          * /admin/crm-dashboard?phone=628xxx atau /admin/crm-dashboard?q=adi zacky

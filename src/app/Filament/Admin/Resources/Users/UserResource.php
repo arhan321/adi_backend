@@ -4,20 +4,20 @@ declare(strict_types=1);
 
 namespace App\Filament\Admin\Resources\Users;
 
-use App\Filament\Admin\Resources\Users\Pages\CreateUser;
-use App\Filament\Admin\Resources\Users\Pages\EditUser;
-use App\Filament\Admin\Resources\Users\Pages\ListUsers;
-use App\Filament\Admin\Resources\Users\Pages\ViewUser;
-use App\Filament\Admin\Resources\Users\Schemas\UserForm;
-use App\Filament\Admin\Resources\Users\Schemas\UserInfolist;
-use App\Filament\Admin\Resources\Users\Tables\UsersTable;
-use App\Models\User;
-use BackedEnum;
-use Filament\Resources\Resource;
-use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Table;
 use UnitEnum;
+use BackedEnum;
+use App\Models\User;
+use Filament\Tables\Table;
+use Filament\Schemas\Schema;
+use Filament\Resources\Resource;
+use Filament\Support\Icons\Heroicon;
+use App\Filament\Admin\Resources\Users\Pages\EditUser;
+use App\Filament\Admin\Resources\Users\Pages\ViewUser;
+use App\Filament\Admin\Resources\Users\Pages\ListUsers;
+use App\Filament\Admin\Resources\Users\Pages\CreateUser;
+use App\Filament\Admin\Resources\Users\Schemas\UserForm;
+use App\Filament\Admin\Resources\Users\Tables\UsersTable;
+use App\Filament\Admin\Resources\Users\Schemas\UserInfolist;
 
 final class UserResource extends Resource
 {
@@ -34,6 +34,16 @@ final class UserResource extends Resource
     public static function getNavigationBadge(): string
     {
         return (string) self::getModel()::count();
+    }
+
+    /**
+     * Akun manajemen tidak menampilkan menu pengelolaan pengguna.
+     */
+    public static function shouldRegisterNavigation(): bool
+    {
+        $user = auth()->user();
+
+        return $user !== null && ! $user->hasRole('manajemen');
     }
 
     public static function form(Schema $schema): Schema

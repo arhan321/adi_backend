@@ -4,22 +4,26 @@ declare(strict_types=1);
 
 namespace App\Services\Crm;
 
-use App\Models\Member;
-use App\Models\CrmSetting;
-use App\Models\WhatsappLog;
-use Carbon\CarbonImmutable;
-use App\Models\RetentionLog;
-use InvalidArgumentException;
-use App\Models\PointTransaction;
-use Illuminate\Support\Facades\DB;
 use App\Jobs\Crm\SendWhatsappMessageJob;
+use App\Models\CrmSetting;
+use App\Models\Member;
+use App\Models\PointTransaction;
+use App\Models\RetentionLog;
+use App\Models\WhatsappLog;
+use App\Support\CrmAccess;
+use Carbon\CarbonImmutable;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 
 final class MemberPointService
 {
     public const POINTS_PER_PURCHASE = 1;
 
-    public function __construct(protected WhatsappMessageBuilder $messageBuilder)
-    {
+    public function __construct(
+        protected WhatsappMessageBuilder $messageBuilder,
+    ) {
     }
 
     public function addPoints(
@@ -29,8 +33,12 @@ final class MemberPointService
         string $activityName = 'Pembelian Produk',
         bool $sendWhatsapp = true,
     ): PointTransaction {
+        $this->authorizePointManagement();
+
         if ($points !== self::POINTS_PER_PURCHASE) {
-            throw new InvalidArgumentException('Setiap pembelian hanya menambahkan 1 poin.');
+            throw new InvalidArgumentException(
+                'Setiap pembelian hanya menambahkan 1 poin.',
+            );
         }
 
         $setting = CrmSetting::current();
@@ -54,7 +62,7 @@ final class MemberPointService
             // Pelanggan datang kembali. Siklus retention lama harus berhenti.
             $this->cancelPendingRetentionCycles(
                 $member->id,
-                'Dibatalkan karena pelanggan kembali dan mendapatkan poin baru.'
+                'Dibatalkan karena pelanggan kembali dan mendapatkan poin baru.',
             );
 
             $member->update([
@@ -65,6 +73,15 @@ final class MemberPointService
 
             $transaction = PointTransaction::query()->create([
                 'member_id' => $member->id,
+
+                /*
+                 * Snapshot mempertahankan identitas pada halaman History
+                 * walaupun record member nantinya dihapus permanen.
+                 */
+                'member_code_snapshot' => $member->member_code,
+                'member_name_snapshot' => $member->name,
+                'member_phone_snapshot' => $member->phone,
+
                 'user_id' => $userId,
                 'type' => PointTransaction::TYPE_EARN,
                 'points_change' => $points,
@@ -88,7 +105,11 @@ final class MemberPointService
                 $this->queueWhatsapp(
                     $freshMember,
                     WhatsappLog::TYPE_POINT_ADDED,
-                    $this->messageBuilder->pointAdded($freshMember, $points, $setting),
+                    $this->messageBuilder->pointAdded(
+                        $freshMember,
+                        $points,
+                        $setting,
+                    ),
                 );
             }
 
@@ -101,6 +122,8 @@ final class MemberPointService
         ?int $userId = null,
         bool $sendWhatsapp = true,
     ): PointTransaction {
+        $this->authorizePointManagement();
+
         $setting = CrmSetting::current();
 
         if (! $setting->promo_is_active) {
@@ -120,7 +143,9 @@ final class MemberPointService
             $requiredPoints = (int) $setting->redeem_required_points;
 
             if ($member->total_points < $requiredPoints) {
-                throw new InvalidArgumentException('Poin member belum cukup untuk redeem.');
+                throw new InvalidArgumentException(
+                    'Poin customer belum cukup untuk redeem.',
+                );
             }
 
             $transactionAt = CarbonImmutable::now();
@@ -130,7 +155,7 @@ final class MemberPointService
             // Redeem juga berarti pelanggan kembali. Hentikan siklus lama.
             $this->cancelPendingRetentionCycles(
                 $member->id,
-                'Dibatalkan karena pelanggan kembali dan melakukan redeem.'
+                'Dibatalkan karena pelanggan kembali dan melakukan redeem.',
             );
 
             $member->update([
@@ -142,13 +167,22 @@ final class MemberPointService
 
             $transaction = PointTransaction::query()->create([
                 'member_id' => $member->id,
+
+                /*
+                 * Snapshot mempertahankan identitas pada halaman History
+                 * walaupun record member nantinya dihapus permanen.
+                 */
+                'member_code_snapshot' => $member->member_code,
+                'member_name_snapshot' => $member->name,
+                'member_phone_snapshot' => $member->phone,
+
                 'user_id' => $userId,
                 'type' => PointTransaction::TYPE_REDEEM,
                 'points_change' => -$requiredPoints,
                 'points_before' => $pointsBefore,
                 'points_after' => $pointsAfter,
                 'activity_name' => 'Redeem '.$setting->reward_name,
-                'description' => 'Member menukarkan poin dengan reward.',
+                'description' => 'Customer menukarkan poin dengan reward.',
                 'transaction_at' => $transactionAt,
             ]);
 
@@ -158,7 +192,10 @@ final class MemberPointService
                 $this->queueWhatsapp(
                     $freshMember,
                     WhatsappLog::TYPE_REDEEM_SUCCESS,
-                    $this->messageBuilder->redeemSuccess($freshMember, $setting),
+                    $this->messageBuilder->redeemSuccess(
+                        $freshMember,
+                        $setting,
+                    ),
                 );
             }
 
@@ -166,8 +203,11 @@ final class MemberPointService
         });
     }
 
-    public function queueWhatsapp(Member $member, string $type, string $message): WhatsappLog
-    {
+    public function queueWhatsapp(
+        Member $member,
+        string $type,
+        string $message,
+    ): WhatsappLog {
         $log = WhatsappLog::query()->create([
             'member_id' => $member->id,
             'phone' => $member->phone,
@@ -208,8 +248,10 @@ final class MemberPointService
         ]);
     }
 
-    private function cancelPendingRetentionCycles(int $memberId, string $reason): void
-    {
+    private function cancelPendingRetentionCycles(
+        int $memberId,
+        string $reason,
+    ): void {
         RetentionLog::query()
             ->where('member_id', $memberId)
             ->where('status', RetentionLog::STATUS_PENDING)
@@ -219,5 +261,17 @@ final class MemberPointService
                 'notes' => $reason,
                 'updated_at' => now(),
             ]);
+    }
+
+    private function authorizePointManagement(): void
+    {
+        if (
+            Auth::check()
+            && ! CrmAccess::canManagePoints(Auth::user())
+        ) {
+            throw new AuthorizationException(
+                'Anda tidak memiliki akses untuk mengelola poin customer.',
+            );
+        }
     }
 }

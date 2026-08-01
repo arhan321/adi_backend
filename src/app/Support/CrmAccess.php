@@ -87,7 +87,12 @@ final class CrmAccess
      */
     public static function managementPermissions(): array
     {
-        return self::allPermissions();
+        return [
+            self::PERMISSION_ACCESS,
+            self::PERMISSION_VIEW_HISTORY,
+            self::PERMISSION_EXPORT_HISTORY,
+            self::PERMISSION_MANAGE_RETENTION,
+        ];
     }
 
     public static function canAccessPanel(?Authenticatable $user): bool
@@ -100,6 +105,30 @@ final class CrmAccess
     {
         return $user instanceof User
             && $user->hasRole(self::ROLE_SUPER_ADMIN);
+    }
+
+    public static function canUseCashierWorkspace(
+        ?Authenticatable $user,
+    ): bool {
+        return $user instanceof User
+            && $user->hasAnyRole([
+                self::ROLE_SUPER_ADMIN,
+                self::ROLE_CASHIER,
+            ])
+            && self::canAccessCrm($user)
+            && self::canManageMembers($user)
+            && self::canManagePoints($user);
+    }
+
+    public static function canUseManagementWorkspace(
+        ?Authenticatable $user,
+    ): bool {
+        return $user instanceof User
+            && $user->hasAnyRole([
+                self::ROLE_SUPER_ADMIN,
+                self::ROLE_MANAGEMENT,
+            ])
+            && self::canAccessCrm($user);
     }
 
     public static function canAccessCrm(?Authenticatable $user): bool

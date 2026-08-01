@@ -7,8 +7,8 @@ namespace Database\Seeders;
 use App\Models\User;
 use App\Support\CrmAccess;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 
 final class CrmRoleSeeder extends Seeder
@@ -36,15 +36,25 @@ final class CrmRoleSeeder extends Seeder
             'web',
         );
 
-        /*
-         * givePermissionTo digunakan agar permission lama
-         * dari Raugadh dan Filament Shield tidak dihapus.
-         */
         $cashier->givePermissionTo(
             CrmAccess::cashierPermissions(),
         );
 
         $management->givePermissionTo(
+            CrmAccess::managementPermissions(),
+        );
+
+        /*
+         * Hanya permission CRM yang tidak sesuai role yang dicabut.
+         * Permission lain dari Raugadh dan Filament Shield tetap dipertahankan.
+         */
+        $this->revokeDisallowedCrmPermissions(
+            $cashier,
+            CrmAccess::cashierPermissions(),
+        );
+
+        $this->revokeDisallowedCrmPermissions(
+            $management,
             CrmAccess::managementPermissions(),
         );
 
@@ -69,5 +79,24 @@ final class CrmRoleSeeder extends Seeder
         }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
+    }
+
+    /**
+     * @param  array<int, string>  $allowedPermissions
+     */
+    private function revokeDisallowedCrmPermissions(
+        Role $role,
+        array $allowedPermissions,
+    ): void {
+        $disallowedPermissions = array_diff(
+            CrmAccess::allPermissions(),
+            $allowedPermissions,
+        );
+
+        foreach ($disallowedPermissions as $permissionName) {
+            if ($role->hasPermissionTo($permissionName)) {
+                $role->revokePermissionTo($permissionName);
+            }
+        }
     }
 }

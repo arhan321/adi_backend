@@ -21,6 +21,9 @@ final class PointTransaction extends Model
 
     protected $fillable = [
         'member_id',
+        'member_code_snapshot',
+        'member_name_snapshot',
+        'member_phone_snapshot',
         'user_id',
         'type',
         'points_change',
@@ -33,7 +36,26 @@ final class PointTransaction extends Model
 
     public function member(): BelongsTo
     {
-        return $this->belongsTo(Member::class)->withTrashed();
+        /*
+         * Jika member masih ada, relasi mengembalikan data member asli.
+         *
+         * Jika member sudah dihapus permanen, withDefault() membentuk
+         * data tampilan dari snapshot transaksi. Dengan demikian halaman
+         * History, aktivitas terbaru, serta export CSV tetap menampilkan
+         * nama dan nomor member tanpa membutuhkan record di tabel members.
+         */
+        return $this->belongsTo(Member::class)
+            ->withDefault(function (
+                Member $member,
+                PointTransaction $transaction,
+            ): void {
+                $member->forceFill([
+                    'member_code' => $transaction->member_code_snapshot,
+                    'name' => $transaction->member_name_snapshot
+                        ?: 'Member telah dihapus',
+                    'phone' => $transaction->member_phone_snapshot ?: '-',
+                ]);
+            });
     }
 
     public function user(): BelongsTo

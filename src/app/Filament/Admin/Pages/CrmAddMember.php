@@ -2,17 +2,17 @@
 
 namespace App\Filament\Admin\Pages;
 
-use App\Models\Member;
-use App\Services\Whatsapp\FonnteWhatsappService;
-use App\Support\CrmAccess;
-use BackedEnum;
-use Filament\Notifications\Notification;
-use Filament\Pages\Page;
-use Illuminate\Database\UniqueConstraintViolationException;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
-use Throwable;
 use UnitEnum;
+use Throwable;
+use BackedEnum;
+use App\Models\Member;
+use Filament\Pages\Page;
+use App\Support\CrmAccess;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Auth;
+use Filament\Notifications\Notification;
+use App\Services\Whatsapp\FonnteWhatsappService;
+use Illuminate\Database\UniqueConstraintViolationException;
 
 class CrmAddMember extends Page
 {
@@ -36,7 +36,15 @@ class CrmAddMember extends Page
 
     public static function canAccess(): bool
     {
-        return CrmAccess::canManageMembers(auth()->user());
+        $user = auth()->user();
+
+        return CrmAccess::canUseCashierWorkspace($user)
+            && CrmAccess::canManageMembers($user);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canAccess();
     }
 
     public function mount(?string $phone = null): void
