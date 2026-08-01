@@ -27,6 +27,8 @@ final class CrmAccess
 
     public const PERMISSION_DELETE_MEMBERS = 'CRM:DeleteMembers';
 
+    public const PERMISSION_VIEW_MEMBER_PHONES = 'CRM:ViewMemberPhones';
+
     public const PERMISSION_MANAGE_RETENTION = 'CRM:ManageRetention';
 
     /**
@@ -65,6 +67,7 @@ final class CrmAccess
             self::PERMISSION_VIEW_HISTORY,
             self::PERMISSION_EXPORT_HISTORY,
             self::PERMISSION_DELETE_MEMBERS,
+            self::PERMISSION_VIEW_MEMBER_PHONES,
             self::PERMISSION_MANAGE_RETENTION,
         ];
     }
@@ -79,6 +82,7 @@ final class CrmAccess
             self::PERMISSION_MANAGE_MEMBERS,
             self::PERMISSION_MANAGE_POINTS,
             self::PERMISSION_VIEW_HISTORY,
+            self::PERMISSION_DELETE_MEMBERS,
         ];
     }
 
@@ -91,6 +95,7 @@ final class CrmAccess
             self::PERMISSION_ACCESS,
             self::PERMISSION_VIEW_HISTORY,
             self::PERMISSION_EXPORT_HISTORY,
+            self::PERMISSION_VIEW_MEMBER_PHONES,
             self::PERMISSION_MANAGE_RETENTION,
         ];
     }
@@ -161,9 +166,65 @@ final class CrmAccess
         return self::hasPermission($user, self::PERMISSION_DELETE_MEMBERS);
     }
 
+    public static function canViewMemberPhones(?Authenticatable $user): bool
+    {
+        return self::hasPermission(
+            $user,
+            self::PERMISSION_VIEW_MEMBER_PHONES,
+        );
+    }
+
     public static function canManageRetention(?Authenticatable $user): bool
     {
         return self::hasPermission($user, self::PERMISSION_MANAGE_RETENTION);
+    }
+
+    public static function shouldMaskMemberPhone(
+        ?Authenticatable $user,
+    ): bool {
+        if (
+            $user instanceof User
+            && $user->hasRole(self::ROLE_CASHIER)
+            && ! self::isSuperAdmin($user)
+        ) {
+            return true;
+        }
+
+        return ! self::canViewMemberPhones($user);
+    }
+
+    public static function memberPhoneForDisplay(
+        ?Authenticatable $user,
+        ?string $phone,
+    ): string {
+        $phone = trim((string) $phone);
+
+        if ($phone === '') {
+            return '-';
+        }
+
+        if (! self::shouldMaskMemberPhone($user)) {
+            return $phone;
+        }
+
+        if (str_contains($phone, '*')) {
+            return $phone;
+        }
+
+        $digits = preg_replace('/[^0-9]/', '', $phone) ?: '';
+        $length = strlen($digits);
+
+        if ($length === 0) {
+            return '-';
+        }
+
+        if ($length <= 6) {
+            return str_repeat('*', max($length, 4));
+        }
+
+        return substr($digits, 0, 2)
+            .str_repeat('*', $length - 6)
+            .substr($digits, -4);
     }
 
     private static function hasPermission(

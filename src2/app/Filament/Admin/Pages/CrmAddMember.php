@@ -102,7 +102,7 @@ class CrmAddMember extends Page
 
             return redirect()->to(
                 CrmDashboard::getUrl([
-                    'phone' => $member->phone,
+                    'member' => $member->id,
                 ])
             );
         } catch (UniqueConstraintViolationException) {

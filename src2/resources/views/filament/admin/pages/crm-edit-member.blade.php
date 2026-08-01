@@ -2,6 +2,8 @@
     @php
         $member = $this->getMemberRecord();
         $memberInitial = $name !== '' ? strtoupper(substr($name, 0, 1)) : 'K';
+        $phonePreview = $phone !== '' ? $phone : $currentPhoneDisplay;
+        $phoneIsMasked = $this->shouldMaskPhone();
 
         $statusLabels = [
             \App\Models\Member::STATUS_ACTIVE => 'Active Member',
@@ -516,7 +518,7 @@
                 <div>
                     <small>Preview Member</small>
                     <strong>{{ $name !== '' ? $name : 'Nama Member' }}</strong>
-                    <span>{{ $phone !== '' ? $phone : 'Nomor WhatsApp' }}</span>
+                    <span>{{ $phonePreview !== '' ? $phonePreview : 'Nomor WhatsApp' }}</span>
                     <span>{{ $member?->member_code ?? 'Kode member otomatis' }} • {{ $statusLabels[$status] ?? 'Active Member' }}</span>
                 </div>
             </div>
@@ -555,8 +557,8 @@
 
                     <div class="kb-field">
                         <label>
-                            Nomor WhatsApp
-                            <span>wajib</span>
+                            {{ $phoneIsMasked ? 'Nomor WhatsApp Baru' : 'Nomor WhatsApp' }}
+                            <span>{{ $phoneIsMasked ? 'opsional' : 'wajib' }}</span>
                         </label>
                         <div class="kb-input-wrap">
                             <span class="kb-input-icon">☎</span>
@@ -564,10 +566,15 @@
                                 type="text"
                                 wire:model.defer="phone"
                                 class="kb-input"
-                                placeholder="Contoh: +6281234567890"
+                                placeholder="{{ $phoneIsMasked ? 'Kosongkan jika nomor tidak diubah' : 'Contoh: +6281234567890' }}"
                                 autocomplete="off"
                             >
                         </div>
+                        @if ($phoneIsMasked)
+                            <div style="margin-top:.55rem; color:#64748b; font-size:.8rem;">
+                                Nomor saat ini: <strong>{{ $currentPhoneDisplay }}</strong>. Isi hanya jika ingin mengganti nomor.
+                            </div>
+                        @endif
                         @error('phone')
                             <div class="kb-error">{{ $message }}</div>
                         @enderror
@@ -626,7 +633,7 @@
 
                     <div class="kb-actions">
                         <a
-                            href="{{ \App\Filament\Admin\Pages\CrmDashboard::getUrl(['phone' => $phone]) }}"
+                            href="{{ \App\Filament\Admin\Pages\CrmDashboard::getUrl(['member' => $member?->id ?? $memberId]) }}"
                             class="kb-btn kb-btn-soft"
                         >
                             Batal

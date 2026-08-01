@@ -30,6 +30,8 @@ class CrmEditMember extends Page
 
     public string $phone = '';
 
+    public string $currentPhoneDisplay = '-';
+
     public ?string $birth_date = null;
 
     public string $status = Member::STATUS_ACTIVE;
@@ -84,7 +86,13 @@ class CrmEditMember extends Page
 
         $this->memberId = $record->id;
         $this->name = (string) $record->name;
-        $this->phone = (string) $record->phone;
+        $this->currentPhoneDisplay = CrmAccess::memberPhoneForDisplay(
+            auth()->user(),
+            $record->phone,
+        );
+        $this->phone = $this->shouldMaskPhone()
+            ? ''
+            : (string) $record->phone;
         $this->birth_date = $record->birth_date?->format('Y-m-d');
         $this->status = $record->status ?: Member::STATUS_ACTIVE;
         $this->notes = $record->notes;
@@ -102,7 +110,7 @@ class CrmEditMember extends Page
             return null;
         }
 
-        $member = $this->getMemberRecord();
+        $member = $this->findMemberRecord();
 
         if (! $member) {
             Notification::make()
@@ -116,7 +124,9 @@ class CrmEditMember extends Page
 
         $this->validate([
             'name' => ['required', 'string', 'max:150'],
-            'phone' => ['required', 'string', 'max:30'],
+            'phone' => $this->shouldMaskPhone()
+                ? ['nullable', 'string', 'max:30']
+                : ['required', 'string', 'max:30'],
             'birth_date' => ['nullable', 'date'],
             'status' => ['required', Rule::in([
                 Member::STATUS_ACTIVE,
@@ -128,7 +138,13 @@ class CrmEditMember extends Page
 
         try {
             $whatsappService = app(FonnteWhatsappService::class);
-            $normalizedPhone = $whatsappService->normalizePhone($this->phone);
+            $normalizedPhone = (string) $member->phone;
+
+            if (filled($this->phone)) {
+                $normalizedPhone = $whatsappService->normalizePhone(
+                    $this->phone,
+                );
+            }
 
             /*
              * Member sudah tidak memakai SoftDeletes, sehingga pengecekan
@@ -165,7 +181,7 @@ class CrmEditMember extends Page
 
             return redirect()->to(
                 CrmDashboard::getUrl([
-                    'phone' => $normalizedPhone,
+                    'member' => $member->id,
                 ])
             );
         } catch (Throwable $throwable) {
@@ -183,11 +199,35 @@ class CrmEditMember extends Page
 
     public function getMemberRecord(): ?Member
     {
+        $member = $this->findMemberRecord();
+
+        if (! $member) {
+            return null;
+        }
+
+        $member->setAttribute(
+            'phone',
+            CrmAccess::memberPhoneForDisplay(
+                auth()->user(),
+                $member->phone,
+            ),
+        );
+
+        return $member;
+    }
+
+    private function findMemberRecord(): ?Member
+    {
         if (! $this->memberId) {
             return null;
         }
 
         return Member::query()->find($this->memberId);
+    }
+
+    public function shouldMaskPhone(): bool
+    {
+        return CrmAccess::shouldMaskMemberPhone(auth()->user());
     }
 
     private function resolveMemberId(mixed $member = null): ?int

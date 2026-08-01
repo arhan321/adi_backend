@@ -1033,7 +1033,7 @@
 
         .kb-member-mini-actions {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: .55rem;
             margin-top: .85rem;
         }
@@ -1379,7 +1379,7 @@
                     @if (! empty($this->memberSearchResults))
                         <div class="kb-search-results">
                             <div class="kb-search-results-head">
-                                <span>Hasil member yang cocok. Pilih berdasarkan nama dan nomor WhatsApp.</span>
+                                <span>Hasil member yang cocok. Pilih berdasarkan nama dan nomor WhatsApp tersensor.</span>
                                 <span class="kb-search-results-count">{{ count($this->memberSearchResults) }}</span>
                             </div>
 
@@ -1453,7 +1453,7 @@
                             <div class="kb-profile-meta">
                                 <div>
                                     <span>Nomor WhatsApp</span>
-                                    <strong>{{ $member->phone }}</strong>
+                                    <strong>{{ \App\Support\CrmAccess::memberPhoneForDisplay(auth()->user(), $member->phone) }}</strong>
                                 </div>
 
                                 <div>
@@ -1556,7 +1556,7 @@
                         <p>
                             Daftar semua member sudah tampil di bawah. Kamu bisa mencari berdasarkan
                             <strong>nama lengkap</strong> atau <strong>nomor WhatsApp</strong>. Jika ada beberapa member
-                            yang cocok, sistem akan menampilkan nama dan nomor WhatsApp agar kamu bisa memilih data yang benar.
+                            yang cocok, sistem akan menampilkan nama dan nomor WhatsApp tersensor agar kamu bisa memilih data yang benar.
                         </p>
 
                         <button type="button" wire:click="goToAddMember" class="kb-btn kb-btn-primary">
@@ -1574,10 +1574,8 @@
                         </div>
 
                         <p>
-                            Semua member ditampilkan di sini. Klik <strong>Pakai Nomor</strong> untuk memakai nomor
-                            sebagai pencarian paling akurat, tekan <strong>Pilih</strong> untuk membuka profil,
-                            tekan <strong>Edit</strong> untuk mengubah data, atau tekan <strong>Hapus</strong> untuk
-                            menghapus member.
+                            Semua member ditampilkan di sini. Tekan <strong>Pilih</strong> untuk membuka profil,
+                            <strong>Edit</strong> untuk mengubah data, atau <strong>Hapus</strong> untuk menghapus member.
                         </p>
                     </div>
 
@@ -1600,7 +1598,7 @@
 
                                     <div>
                                         <h3>{{ $directoryMember->name }}</h3>
-                                        <span>{{ $directoryMember->phone }}</span>
+                                        <span>{{ \App\Support\CrmAccess::memberPhoneForDisplay(auth()->user(), $directoryMember->phone) }}</span>
                                     </div>
                                 </div>
 
@@ -1633,14 +1631,6 @@
                                 </div>
 
                                 <div class="kb-member-mini-actions">
-                                    <button
-                                        type="button"
-                                        class="kb-btn kb-btn-dark"
-                                        wire:click="$set('searchPhone', @js($directoryMember->phone))"
-                                    >
-                                        Pakai Nomor
-                                    </button>
-
                                     <button
                                         type="button"
                                         class="kb-btn kb-btn-primary"

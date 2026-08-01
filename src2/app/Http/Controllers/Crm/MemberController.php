@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Crm;
 use App\Http\Controllers\Controller;
 use App\Models\Member;
 use App\Services\Whatsapp\FonnteWhatsappService;
+use App\Support\CrmAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -26,7 +27,9 @@ class MemberController extends Controller
 
         return response()->json([
             'found' => (bool) $member,
-            'member' => $member,
+            'member' => $member
+                ? $this->memberPayload($request, $member)
+                : null,
         ]);
     }
 
@@ -49,8 +52,22 @@ class MemberController extends Controller
 
         return response()->json([
             'message' => 'Member berhasil dibuat.',
-            'member' => $member,
+            'member' => $this->memberPayload($request, $member),
         ], 201);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function memberPayload(Request $request, Member $member): array
+    {
+        $payload = $member->toArray();
+        $payload['phone'] = CrmAccess::memberPhoneForDisplay(
+            $request->user(),
+            $member->phone,
+        );
+
+        return $payload;
     }
 
     protected function generateMemberCode(): string

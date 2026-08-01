@@ -6,6 +6,7 @@ use UnitEnum;
 use BackedEnum;
 use Filament\Pages\Page;
 use App\Models\PointTransaction;
+use App\Support\CrmAccess;
 use Illuminate\Support\Facades\Response;
 
 class CrmHistory extends Page
@@ -28,18 +29,39 @@ class CrmHistory extends Page
 
     public function getTransactions()
     {
+        $viewer = auth()->user();
+
         return $this->baseQuery()
             ->latest('transaction_at')
             ->limit(100)
-            ->get();
+            ->get()
+            ->each(function (PointTransaction $transaction) use ($viewer): void {
+                $displayPhone = CrmAccess::memberPhoneForDisplay(
+                    $viewer,
+                    $transaction->member?->phone,
+                );
+
+                $transaction->setAttribute(
+                    'member_phone_snapshot',
+                    CrmAccess::memberPhoneForDisplay(
+                        $viewer,
+                        $transaction->member_phone_snapshot,
+                    ),
+                );
+                $transaction->member?->setAttribute(
+                    'phone',
+                    $displayPhone,
+                );
+            });
     }
 
     public function exportCsv(): mixed
     {
         $fileName = 'history-crm-kopi-banget-' . now()->format('Ymd-His') . '.csv';
         $rows = $this->baseQuery()->latest('transaction_at')->get();
+        $viewer = auth()->user();
 
-        return Response::streamDownload(function () use ($rows): void {
+        return Response::streamDownload(function () use ($rows, $viewer): void {
             $handle = fopen('php://output', 'w');
 
             fputcsv($handle, [
@@ -58,7 +80,10 @@ class CrmHistory extends Page
                 fputcsv($handle, [
                     optional($row->transaction_at)->format('Y-m-d H:i:s'),
                     $row->member?->name,
-                    $row->member?->phone,
+                    CrmAccess::memberPhoneForDisplay(
+                        $viewer,
+                        $row->member?->phone,
+                    ),
                     $row->activity_name,
                     $row->type,
                     $row->points_change,

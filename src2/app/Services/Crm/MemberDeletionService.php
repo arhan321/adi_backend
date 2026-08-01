@@ -25,7 +25,7 @@ final class MemberDeletionService
             || ! CrmAccess::canDeleteMembers(Auth::user())
         ) {
             throw new AuthorizationException(
-                'Hanya manajemen dan super admin yang dapat menghapus customer.',
+                'Anda tidak memiliki izin untuk menghapus customer.',
             );
         }
 

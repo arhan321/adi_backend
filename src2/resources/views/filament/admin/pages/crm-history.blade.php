@@ -810,7 +810,7 @@
 
                         <div>
                             <strong>{{ $topMember->name }}</strong>
-                            <span>{{ $topMember->phone }}</span>
+                            <span>{{ \App\Support\CrmAccess::memberPhoneForDisplay(auth()->user(), $topMember->phone) }}</span>
                         </div>
 
                         <div class="kb-top-points">
@@ -882,7 +882,10 @@
                                     $isPlus = $transaction->points_change > 0;
                                     $isMinus = $transaction->points_change < 0;
                                     $memberName = $transaction->member?->name ?? 'Member';
-                                    $memberPhone = $transaction->member?->phone ?? '-';
+                                    $memberPhone = \App\Support\CrmAccess::memberPhoneForDisplay(
+                                        auth()->user(),
+                                        $transaction->member?->phone,
+                                    );
                                     $initial = strtoupper(substr($memberName, 0, 1));
                                 @endphp
 

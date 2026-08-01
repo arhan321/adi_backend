@@ -50,7 +50,7 @@ class CrmDashboard extends Page
 
     /**
      * Daftar hasil pencarian ketika nama/keyword menghasilkan lebih dari satu member.
-     * Dipakai view untuk menampilkan nama + nomor WhatsApp agar kasir bisa memilih member yang benar.
+     * Nomor WhatsApp di dalam state ini selalu sudah disensor untuk kasir.
      *
      * @var array<int, array<string, mixed>>
      */
@@ -60,13 +60,34 @@ class CrmDashboard extends Page
 
     public string $activityName = 'Pembelian Produk';
 
-    public function mount(?string $phone = null, ?string $q = null): void
+    public function mount(
+        ?string $phone = null,
+        ?string $q = null,
+        mixed $member = null,
+    ): void
     {
         abort_unless(
             static::canAccess(),
             403,
             'Anda tidak memiliki akses ke Dashboard CRM.',
         );
+
+        $memberId = $this->resolveMemberId(
+            $member ?? request()->query('member'),
+        );
+
+        if ($memberId) {
+            $selectedMember = Member::query()->find($memberId);
+
+            if ($selectedMember) {
+                $this->selectMember(
+                    $selectedMember,
+                    'Member berhasil dibuka.',
+                );
+
+                return;
+            }
+        }
 
         /**
          * Dashboard membaca query string agar redirect seperti:
@@ -164,7 +185,7 @@ class CrmDashboard extends Page
 
     public function addPoints(MemberPointService $memberPointService): void
     {
-        $member = $this->getSelectedMember();
+        $member = $this->findSelectedMember();
 
         if (! $member) {
             throw ValidationException::withMessages([
@@ -205,7 +226,7 @@ class CrmDashboard extends Page
 
     public function redeem(MemberPointService $memberPointService): void
     {
-        $member = $this->getSelectedMember();
+        $member = $this->findSelectedMember();
 
         if (! $member) {
             throw ValidationException::withMessages([
@@ -297,6 +318,25 @@ class CrmDashboard extends Page
     }
 
     public function getSelectedMember(): ?Member
+    {
+        $member = $this->findSelectedMember();
+
+        if (! $member) {
+            return null;
+        }
+
+        $member->setAttribute(
+            'phone',
+            CrmAccess::memberPhoneForDisplay(
+                auth()->user(),
+                $member->phone,
+            ),
+        );
+
+        return $member;
+    }
+
+    private function findSelectedMember(): ?Member
     {
         if (! $this->selectedMemberId) {
             return null;
@@ -426,10 +466,17 @@ class CrmDashboard extends Page
 
     private function selectMember(Member $member, string $message): void
     {
+        $displayPhone = CrmAccess::memberPhoneForDisplay(
+            auth()->user(),
+            $member->phone,
+        );
+
         $this->selectedMemberId = $member->id;
         $this->memberSearchResults = [];
-        $this->searchPhone = $member->phone;
-        $this->searchFeedback = $message . ' ' . $member->name . ' - ' . $member->phone;
+        $this->searchPhone = CrmAccess::shouldMaskMemberPhone(auth()->user())
+            ? ''
+            : (string) $member->phone;
+        $this->searchFeedback = $message.' '.$member->name.' - '.$displayPhone;
     }
 
     private function memberNotFound(string $message): void
@@ -467,7 +514,10 @@ class CrmDashboard extends Page
                 return [
                     'id' => $member->id,
                     'name' => $member->name,
-                    'phone' => $member->phone,
+                    'phone' => CrmAccess::memberPhoneForDisplay(
+                        auth()->user(),
+                        $member->phone,
+                    ),
                     'member_code' => $member->member_code ?? 'KB-MEMBER',
                     'total_points' => (int) $member->total_points,
                     'last_visit_at' => $member->last_visit_at
@@ -478,5 +528,21 @@ class CrmDashboard extends Page
             })
             ->values()
             ->all();
+    }
+
+    private function resolveMemberId(mixed $member): ?int
+    {
+        if (
+            is_array($member)
+            || is_object($member)
+            || $member === null
+            || $member === ''
+        ) {
+            return null;
+        }
+
+        $member = preg_replace('/[^0-9]/', '', (string) $member);
+
+        return $member === '' ? null : (int) $member;
     }
 }
